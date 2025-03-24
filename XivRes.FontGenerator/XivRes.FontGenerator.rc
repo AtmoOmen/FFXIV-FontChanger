@@ -375,7 +375,7 @@ BEGIN
     END
     POPUP "&热重载"
     BEGIN
-        MENUITEM "为所有已运行游戏重载字体", ID_HOTRELOAD_RELOAD
+        MENUITEM "为当前运行游戏重载字体", ID_HOTRELOAD_RELOAD
         MENUITEM "恢复默认",         ID_HOTRELOAD_RESTORE
         MENUITEM SEPARATOR
         MENUITEM "自动",                       ID_HOTRELOAD_FONT_AUTO, CHECKED

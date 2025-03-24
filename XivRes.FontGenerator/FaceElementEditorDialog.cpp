@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "FaceElementEditorDialog.h"
 #include "resource.h"
 
@@ -193,11 +193,11 @@ INT_PTR App::FaceElementEditorDialog::FontStyleCombo_OnCommand(uint16_t notiCode
 		return 0;
 
 	DWRITE_FONT_STYLE newStyle;
-	if (const auto prevText = GetWindowString(m_controls->FontStyleCombo); prevText == L"Normal")
+	if (const auto prevText = GetWindowString(m_controls->FontStyleCombo); prevText == L"标准")
 		newStyle = DWRITE_FONT_STYLE_NORMAL;
-	else if (prevText == L"Oblique")
+	else if (prevText == L"斜体")
 		newStyle = DWRITE_FONT_STYLE_OBLIQUE;
-	else if (prevText == L"Italic")
+	else if (prevText == L"倾斜体")
 		newStyle = DWRITE_FONT_STYLE_ITALIC;
 	else
 		newStyle = DWRITE_FONT_STYLE_NORMAL;
@@ -213,25 +213,25 @@ INT_PTR App::FaceElementEditorDialog::FontStretchCombo_OnCommand(uint16_t notiCo
 		return 0;
 
 	DWRITE_FONT_STRETCH newStretch;
-	if (const auto prevText = GetWindowString(m_controls->FontStretchCombo); prevText == L"Ultra Condensed")
+	if (const auto prevText = GetWindowString(m_controls->FontStretchCombo); prevText == L"超窄")
 		newStretch = DWRITE_FONT_STRETCH_ULTRA_CONDENSED;
-	else if (prevText == L"Extra Condensed")
+	else if (prevText == L"特窄")
 		newStretch = DWRITE_FONT_STRETCH_EXTRA_CONDENSED;
-	else if (prevText == L"Condensed")
+	else if (prevText == L"窄体")
 		newStretch = DWRITE_FONT_STRETCH_CONDENSED;
-	else if (prevText == L"Semi Condensed")
+	else if (prevText == L"半窄")
 		newStretch = DWRITE_FONT_STRETCH_SEMI_CONDENSED;
-	else if (prevText == L"Normal")
+	else if (prevText == L"标准")
 		newStretch = DWRITE_FONT_STRETCH_NORMAL;
-	else if (prevText == L"Medium")
+	else if (prevText == L"中等")
 		newStretch = DWRITE_FONT_STRETCH_MEDIUM;
-	else if (prevText == L"Semi Expanded")
+	else if (prevText == L"半宽")
 		newStretch = DWRITE_FONT_STRETCH_SEMI_EXPANDED;
-	else if (prevText == L"Expanded")
+	else if (prevText == L"宽体")
 		newStretch = DWRITE_FONT_STRETCH_EXPANDED;
-	else if (prevText == L"Extra Expanded")
+	else if (prevText == L"特宽")
 		newStretch = DWRITE_FONT_STRETCH_EXTRA_EXPANDED;
-	else if (prevText == L"Ultra Expanded")
+	else if (prevText == L"超宽")
 		newStretch = DWRITE_FONT_STRETCH_ULTRA_EXPANDED;
 	else
 		newStretch = DWRITE_FONT_STRETCH_NORMAL;
@@ -565,8 +565,8 @@ INT_PTR App::FaceElementEditorDialog::Dialog_OnInitDialog() {
 	SetControlsEnabledOrDisabled();
 	RepopulateFontCombobox();
 	RefreshUnicodeBlockSearchResults();
-	ComboBox_AddString(m_controls->FontRendererCombo, L"Empty");
-	ComboBox_AddString(m_controls->FontRendererCombo, L"Prerendered (Game)");
+	ComboBox_AddString(m_controls->FontRendererCombo, L"空");
+	ComboBox_AddString(m_controls->FontRendererCombo, L"预渲染 (游戏)");
 	ComboBox_AddString(m_controls->FontRendererCombo, L"DirectWrite");
 	ComboBox_AddString(m_controls->FontRendererCombo, L"FreeType");
 	ComboBox_SetCurSel(m_controls->FontRendererCombo, static_cast<int>(m_element.Renderer));
@@ -577,27 +577,27 @@ INT_PTR App::FaceElementEditorDialog::Dialog_OnInitDialog() {
 	Button_SetCheck(m_controls->FreeTypeNoBitmapCheck, (m_element.RendererSpecific.FreeType.LoadFlags & FT_LOAD_NO_BITMAP) ? TRUE : FALSE);
 	Button_SetCheck(m_controls->FreeTypeForceAutohintCheck, (m_element.RendererSpecific.FreeType.LoadFlags & FT_LOAD_FORCE_AUTOHINT) ? TRUE : FALSE);
 	Button_SetCheck(m_controls->FreeTypeNoAutohintCheck, (m_element.RendererSpecific.FreeType.LoadFlags & FT_LOAD_NO_AUTOHINT) ? TRUE : FALSE);
-	ComboBox_AddString(m_controls->FreeTypeRenderModeCombo, L"Normal");
-	ComboBox_AddString(m_controls->FreeTypeRenderModeCombo, L"Light");
-	ComboBox_AddString(m_controls->FreeTypeRenderModeCombo, L"Mono");
-	ComboBox_AddString(m_controls->FreeTypeRenderModeCombo, L"LCD (Probably not what you want)");
-	ComboBox_AddString(m_controls->FreeTypeRenderModeCombo, L"LCD_V (Probably not what you want)");
+	ComboBox_AddString(m_controls->FreeTypeRenderModeCombo, L"标准");
+	ComboBox_AddString(m_controls->FreeTypeRenderModeCombo, L"轻量");
+	ComboBox_AddString(m_controls->FreeTypeRenderModeCombo, L"单色");
+	ComboBox_AddString(m_controls->FreeTypeRenderModeCombo, L"LCD");
+	ComboBox_AddString(m_controls->FreeTypeRenderModeCombo, L"LCD_V");
 	ComboBox_AddString(m_controls->FreeTypeRenderModeCombo, L"SDF");
 	ComboBox_SetCurSel(m_controls->FreeTypeRenderModeCombo, static_cast<int>(m_element.RendererSpecific.FreeType.RenderMode));
-	ComboBox_AddString(m_controls->DirectWriteRenderModeCombo, L"Default");
-	ComboBox_AddString(m_controls->DirectWriteRenderModeCombo, L"Aliased");
-	ComboBox_AddString(m_controls->DirectWriteRenderModeCombo, L"GDI Classic");
-	ComboBox_AddString(m_controls->DirectWriteRenderModeCombo, L"GDI Natural");
-	ComboBox_AddString(m_controls->DirectWriteRenderModeCombo, L"Natural");
-	ComboBox_AddString(m_controls->DirectWriteRenderModeCombo, L"Natural Symmetric");
+	ComboBox_AddString(m_controls->DirectWriteRenderModeCombo, L"默认");
+	ComboBox_AddString(m_controls->DirectWriteRenderModeCombo, L"锯齿化");
+	ComboBox_AddString(m_controls->DirectWriteRenderModeCombo, L"GDI 经典");
+	ComboBox_AddString(m_controls->DirectWriteRenderModeCombo, L"GDI 自然");
+	ComboBox_AddString(m_controls->DirectWriteRenderModeCombo, L"自然");
+	ComboBox_AddString(m_controls->DirectWriteRenderModeCombo, L"自然对称");
 	ComboBox_SetCurSel(m_controls->DirectWriteRenderModeCombo, static_cast<int>(m_element.RendererSpecific.DirectWrite.RenderMode));
-	ComboBox_AddString(m_controls->DirectWriteMeasureModeCombo, L"Natural");
-	ComboBox_AddString(m_controls->DirectWriteMeasureModeCombo, L"GDI Classic");
-	ComboBox_AddString(m_controls->DirectWriteMeasureModeCombo, L"GDI Natural");
+	ComboBox_AddString(m_controls->DirectWriteMeasureModeCombo, L"自然");
+	ComboBox_AddString(m_controls->DirectWriteMeasureModeCombo, L"GDI 经典");
+	ComboBox_AddString(m_controls->DirectWriteMeasureModeCombo, L"GDI 自然");
 	ComboBox_SetCurSel(m_controls->DirectWriteMeasureModeCombo, static_cast<int>(m_element.RendererSpecific.DirectWrite.MeasureMode));
-	ComboBox_AddString(m_controls->DirectWriteGridFitModeCombo, L"Default");
-	ComboBox_AddString(m_controls->DirectWriteGridFitModeCombo, L"Disabled");
-	ComboBox_AddString(m_controls->DirectWriteGridFitModeCombo, L"Enabled");
+	ComboBox_AddString(m_controls->DirectWriteGridFitModeCombo, L"默认");
+	ComboBox_AddString(m_controls->DirectWriteGridFitModeCombo, L"禁用");
+	ComboBox_AddString(m_controls->DirectWriteGridFitModeCombo, L"启用");
 	ComboBox_SetCurSel(m_controls->DirectWriteGridFitModeCombo, static_cast<int>(m_element.RendererSpecific.DirectWrite.GridFitMode));
 
 	SetWindowNumber(m_controls->AdjustmentBaselineShiftEdit, m_element.WrapModifiers.BaselineShift);
@@ -609,9 +609,9 @@ INT_PTR App::FaceElementEditorDialog::Dialog_OnInitDialog() {
 	for (int i = 0, i_ = static_cast<int>(m_element.WrapModifiers.Codepoints.size()); i < i_; i++)
 		AddCodepointRangeToListBox(i, m_element.WrapModifiers.Codepoints[i].first, m_element.WrapModifiers.Codepoints[i].second, charVec);
 
-	ComboBox_AddString(m_controls->CodepointsMergeModeCombo, L"Add new glyphs");
-	ComboBox_AddString(m_controls->CodepointsMergeModeCombo, L"Add all glyphs");
-	ComboBox_AddString(m_controls->CodepointsMergeModeCombo, L"Replace existing glyphs");
+	ComboBox_AddString(m_controls->CodepointsMergeModeCombo, L"添加新字形");
+	ComboBox_AddString(m_controls->CodepointsMergeModeCombo, L"添加所有字形");
+	ComboBox_AddString(m_controls->CodepointsMergeModeCombo, L"替换现有字形");
 	ComboBox_SetCurSel(m_controls->CodepointsMergeModeCombo, static_cast<int>(m_element.MergeMode));
 
 	SetWindowNumber(m_controls->TransformationMatrixM11Edit, m_element.TransformationMatrix.M11);
@@ -1165,9 +1165,9 @@ void App::FaceElementEditorDialog::RepopulateFontSubComboBox() {
 
 	switch (m_element.Renderer) {
 		case Structs::RendererEnum::PrerenderedGameInstallation: {
-			ComboBox_AddString(m_controls->FontWeightCombo, L"400 (Normal/Regular)");
-			ComboBox_AddString(m_controls->FontStyleCombo, L"Normal");
-			ComboBox_AddString(m_controls->FontStretchCombo, L"Normal");
+			ComboBox_AddString(m_controls->FontWeightCombo, L"400 (标准/常规)");
+			ComboBox_AddString(m_controls->FontStyleCombo, L"标准");
+			ComboBox_AddString(m_controls->FontStretchCombo, L"标准");
 			ComboBox_SetCurSel(m_controls->FontWeightCombo, 0);
 			ComboBox_SetCurSel(m_controls->FontStyleCombo, 0);
 			ComboBox_SetCurSel(m_controls->FontStretchCombo, 0);
@@ -1212,27 +1212,27 @@ void App::FaceElementEditorDialog::RepopulateFontSubComboBox() {
 
 			for (const auto v : weights) {
 				switch (v) {
-					case 100: ComboBox_AddString(m_controls->FontWeightCombo, L"100 (Thin)");
+					case 100: ComboBox_AddString(m_controls->FontWeightCombo, L"100 (细体)");
 						break;
-					case 200: ComboBox_AddString(m_controls->FontWeightCombo, L"200 (Extra Light/Ultra Light)");
+					case 200: ComboBox_AddString(m_controls->FontWeightCombo, L"200 (特细/超细)");
 						break;
-					case 300: ComboBox_AddString(m_controls->FontWeightCombo, L"300 (Light)");
+					case 300: ComboBox_AddString(m_controls->FontWeightCombo, L"300 (细体)");
 						break;
-					case 350: ComboBox_AddString(m_controls->FontWeightCombo, L"350 (Semi Light)");
+					case 350: ComboBox_AddString(m_controls->FontWeightCombo, L"350 (半细体)");
 						break;
-					case 400: ComboBox_AddString(m_controls->FontWeightCombo, L"400 (Normal/Regular)");
+					case 400: ComboBox_AddString(m_controls->FontWeightCombo, L"400 (标准/常规)");
 						break;
-					case 500: ComboBox_AddString(m_controls->FontWeightCombo, L"500 (Medium)");
+					case 500: ComboBox_AddString(m_controls->FontWeightCombo, L"500 (中等)");
 						break;
-					case 600: ComboBox_AddString(m_controls->FontWeightCombo, L"600 (Semi Bold/Demibold)");
+					case 600: ComboBox_AddString(m_controls->FontWeightCombo, L"600 (半粗体/次粗体)");
 						break;
-					case 700: ComboBox_AddString(m_controls->FontWeightCombo, L"700 (Bold)");
+					case 700: ComboBox_AddString(m_controls->FontWeightCombo, L"700 (粗体)");
 						break;
-					case 800: ComboBox_AddString(m_controls->FontWeightCombo, L"800 (Extra Bold/Ultra Bold)");
+					case 800: ComboBox_AddString(m_controls->FontWeightCombo, L"800 (特粗/超粗)");
 						break;
-					case 900: ComboBox_AddString(m_controls->FontWeightCombo, L"900 (Black/Heavy)");
+					case 900: ComboBox_AddString(m_controls->FontWeightCombo, L"900 (黑体/重体)");
 						break;
-					case 950: ComboBox_AddString(m_controls->FontWeightCombo, L"950 (Extra Black/Ultra Black)");
+					case 950: ComboBox_AddString(m_controls->FontWeightCombo, L"950 (特黑/超黑)");
 						break;
 					default: ComboBox_AddString(m_controls->FontWeightCombo, std::format(L"{}", static_cast<int>(v)).c_str());
 				}
@@ -1245,11 +1245,11 @@ void App::FaceElementEditorDialog::RepopulateFontSubComboBox() {
 
 			for (const auto v : styles) {
 				switch (v) {
-					case DWRITE_FONT_STYLE_NORMAL: ComboBox_AddString(m_controls->FontStyleCombo, L"Normal");
+					case DWRITE_FONT_STYLE_NORMAL: ComboBox_AddString(m_controls->FontStyleCombo, L"标准");
 						break;
-					case DWRITE_FONT_STYLE_OBLIQUE: ComboBox_AddString(m_controls->FontStyleCombo, L"Oblique");
+					case DWRITE_FONT_STYLE_OBLIQUE: ComboBox_AddString(m_controls->FontStyleCombo, L"斜体");
 						break;
-					case DWRITE_FONT_STYLE_ITALIC: ComboBox_AddString(m_controls->FontStyleCombo, L"Italic");
+					case DWRITE_FONT_STYLE_ITALIC: ComboBox_AddString(m_controls->FontStyleCombo, L"倾斜体");
 						break;
 					default: continue;
 				}
@@ -1262,23 +1262,23 @@ void App::FaceElementEditorDialog::RepopulateFontSubComboBox() {
 
 			for (const auto v : stretches) {
 				switch (v) {
-					case DWRITE_FONT_STRETCH_ULTRA_CONDENSED: ComboBox_AddString(m_controls->FontStretchCombo, L"Ultra Condensed");
+					case DWRITE_FONT_STRETCH_ULTRA_CONDENSED: ComboBox_AddString(m_controls->FontStretchCombo, L"超窄");
 						break;
-					case DWRITE_FONT_STRETCH_EXTRA_CONDENSED: ComboBox_AddString(m_controls->FontStretchCombo, L"Extra Condensed");
+					case DWRITE_FONT_STRETCH_EXTRA_CONDENSED: ComboBox_AddString(m_controls->FontStretchCombo, L"特窄");
 						break;
-					case DWRITE_FONT_STRETCH_CONDENSED: ComboBox_AddString(m_controls->FontStretchCombo, L"Condensed");
+					case DWRITE_FONT_STRETCH_CONDENSED: ComboBox_AddString(m_controls->FontStretchCombo, L"窄体");
 						break;
-					case DWRITE_FONT_STRETCH_SEMI_CONDENSED: ComboBox_AddString(m_controls->FontStretchCombo, L"Semi Condensed");
+					case DWRITE_FONT_STRETCH_SEMI_CONDENSED: ComboBox_AddString(m_controls->FontStretchCombo, L"半窄");
 						break;
-					case DWRITE_FONT_STRETCH_NORMAL: ComboBox_AddString(m_controls->FontStretchCombo, L"Normal");
+					case DWRITE_FONT_STRETCH_NORMAL: ComboBox_AddString(m_controls->FontStretchCombo, L"标准");
 						break;
-					case DWRITE_FONT_STRETCH_SEMI_EXPANDED: ComboBox_AddString(m_controls->FontStretchCombo, L"Semi Expanded");
+					case DWRITE_FONT_STRETCH_SEMI_EXPANDED: ComboBox_AddString(m_controls->FontStretchCombo, L"半宽");
 						break;
-					case DWRITE_FONT_STRETCH_EXPANDED: ComboBox_AddString(m_controls->FontStretchCombo, L"Expanded");
+					case DWRITE_FONT_STRETCH_EXPANDED: ComboBox_AddString(m_controls->FontStretchCombo, L"宽体");
 						break;
-					case DWRITE_FONT_STRETCH_EXTRA_EXPANDED: ComboBox_AddString(m_controls->FontStretchCombo, L"Extra Expanded");
+					case DWRITE_FONT_STRETCH_EXTRA_EXPANDED: ComboBox_AddString(m_controls->FontStretchCombo, L"特宽");
 						break;
-					case DWRITE_FONT_STRETCH_ULTRA_EXPANDED: ComboBox_AddString(m_controls->FontStretchCombo, L"Ultra Expanded");
+					case DWRITE_FONT_STRETCH_ULTRA_EXPANDED: ComboBox_AddString(m_controls->FontStretchCombo, L"超宽");
 						break;
 					default: continue;
 				}
