@@ -11,21 +11,51 @@ std::shared_ptr<xivres::fontgen::fixed_size_font> GetGameFont(xivres::fontgen::g
 
 	auto pathconf = nlohmann::json::object();
 	pathconf["global"] = nlohmann::json::array({R"(C:\Program Files (x86)\SquareEnix\FINAL FANTASY XIV - A Realm Reborn\game)"});
+	
+	std::string chinesePath1 = reinterpret_cast<const char*>(u8"E:\\Program Files (x86)\\上海数龙科技有限公司\\最终幻想XIV\\");
+	std::string chinesePath2 = reinterpret_cast<const char*>(u8"E:\\Program Files (x86)\\上海数龙科技有限公司\\最终幻想XIV\\game");
+	
 	pathconf["chinese"] = nlohmann::json::array({
-		reinterpret_cast<const char*>(u8R"(C:\Program Files (x86)\上海数龙科技有限公司\最终幻想XIV\)"),
-		R"(C:\Program Files (x86)\SNDA\FFXIV\game)",
+		chinesePath1,
+		chinesePath2,
 	});
 	pathconf["korean"] = nlohmann::json::array({R"(C:\Program Files (x86)\FINAL FANTASY XIV - KOREA\game)"});
 
 	try {
 		if (!exists(std::filesystem::path("config.json"))) {
-			std::ofstream out("config.json");
-			out << pathconf;
+			std::ofstream out("config.json", std::ios::binary);
+			const unsigned char bom[] = { 0xEF, 0xBB, 0xBF };
+			out.write(reinterpret_cast<const char*>(bom), sizeof(bom));
+			out << pathconf.dump(4); // 使用4个空格缩进美化输出
 		} else {
-			std::ifstream in("config.json");
-			pathconf = nlohmann::json::parse(in);
+			std::ifstream in("config.json", std::ios::binary);
+			char bom[3];
+			in.read(bom, 3);
+			if (!(bom[0] == (char)0xEF && bom[1] == (char)0xBB && bom[2] == (char)0xBF)) {
+				in.seekg(0);
+			}
+			
+			try {
+				pathconf = nlohmann::json::parse(in);
+			} catch (const nlohmann::json::parse_error& e) {
+				std::ofstream out("config.json.new", std::ios::binary);
+				const unsigned char bom[] = { 0xEF, 0xBB, 0xBF };
+				out.write(reinterpret_cast<const char*>(bom), sizeof(bom));
+				out << pathconf.dump(4);
+				
+				if (exists(std::filesystem::path("config.json.bak")))
+					std::filesystem::remove("config.json.bak");
+				std::filesystem::rename("config.json", "config.json.bak");
+				std::filesystem::rename("config.json.new", "config.json");
+				
+				MessageBoxW(nullptr, L"配置文件解析失败，已创建新的配置文件。", L"提示", MB_OK);
+			}
 		}
-	} catch (...) {}
+	} catch (const std::exception& e) {
+		MessageBoxW(nullptr, std::format(
+			L"配置文件操作失败: {}",
+			xivres::util::unicode::convert<std::wstring>(e.what())).c_str(), L"错误", MB_OK);
+	}
 
 	try {
 		switch (family) {
@@ -40,7 +70,9 @@ std::shared_ptr<xivres::fontgen::fixed_size_font> GetGameFont(xivres::fontgen::g
 					for (const auto validRegion : {"global", "chinese", "korean"}) {
 						for (const auto& path : pathconf[validRegion]) {
 							try {
-								font = xivres::installation(path.get<std::string>()).get_fontdata_set(xivres::font_type::font);
+								std::string pathStr = path.get<std::string>();
+								std::filesystem::path fsPath(xivres::util::unicode::convert<std::wstring>(pathStr));
+								font = xivres::installation(fsPath.string()).get_fontdata_set(xivres::font_type::font);
 								break;
 							} catch (...) {}
 						}
@@ -60,7 +92,10 @@ std::shared_ptr<xivres::fontgen::fixed_size_font> GetGameFont(xivres::fontgen::g
 					for (const auto validRegion : {"chinese"}) {
 						for (const auto& path : pathconf[validRegion]) {
 							try {
-								font = xivres::installation(path.get<std::string>()).get_fontdata_set(xivres::font_type::chn_axis);
+								std::string pathStr = path.get<std::string>();
+								std::filesystem::path fsPath(xivres::util::unicode::convert<std::wstring>(pathStr));
+								font = xivres::installation(fsPath.string()).get_fontdata_set(xivres::font_type::chn_axis);
+								break;
 							} catch (...) {}
 						}
 					}
@@ -76,7 +111,10 @@ std::shared_ptr<xivres::fontgen::fixed_size_font> GetGameFont(xivres::fontgen::g
 					for (const auto validRegion : {"korean"}) {
 						for (const auto& path : pathconf[validRegion]) {
 							try {
-								font = xivres::installation(path.get<std::string>()).get_fontdata_set(xivres::font_type::krn_axis);
+								std::string pathStr = path.get<std::string>();
+								std::filesystem::path fsPath(xivres::util::unicode::convert<std::wstring>(pathStr));
+								font = xivres::installation(fsPath.string()).get_fontdata_set(xivres::font_type::krn_axis);
+								break;
 							} catch (...) {}
 						}
 					}
