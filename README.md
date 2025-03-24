@@ -1,31 +1,29 @@
-# Font Mod Generator for FFXIV
-Create a font mod for your game, to change the font displayed and/or add support for scripts of languages that aren't natively supported by the game.
+# FFXIV Font Changer CN
 
-| Program | Example |
-| -- | -- |
-| ![Program UI](https://user-images.githubusercontent.com/3614868/172542113-9b4005f9-b748-4faf-8759-a39827517832.png) | ![Comic Sans example](https://github.com/user-attachments/assets/0e7e952d-0e43-4faf-b535-c5cd9d551b4f) |
+FF14 字体模组生成器中文汉化版, 可用于改变游戏显示的字体样式或用于支持显示游戏尚且无法显示的字符。
 
-## Affected fonts
-* Standard text, including dialogues, chat logs, and more: edit AXIS.
-* Damage numbers: edit Jupiter.
-* Bar numbers: edit Meidinger.
-* Window titles: edit TrumpGothic.
+## 游戏字体参考
 
-## Unaffected fonts
-* Text displayed on entering a zone.
-* Text displayed on forming a light/full party.
-* Gold saucer airplane piloting score.
-* Other various giant gold text.
+- Axis - 游戏内标准文本字体, 包含一般界面、聊天信息等等
+- Jupiter - 游戏内伤害数字文本字体
+- Meidinger - 栏目数字文本字体
+- TrumpGothic - 窗口大标题 (主要为国际服) 文本字体
 
-## Usage
-1. If you're using the localized game release (not in Japanese, English, German, or French) then pick `ChnAXIS` or `KrnAXIS` from `File > New`.
-2. Choose a single font from the list on the left.
-3. Add and edit font elements to the list on the right top.
-4. Try editing anything you can and see what happens. Alternatively, use `File > Open` and open a preset file to see examples.
-5. Once finished, use `Export > Export to .ttmp TexTools ModPack file (Compress while packing)`, and import the file using whatever modding tool of your choice.
-6. If the game is running, `Hot Reload` can be used if you do not want to restart the game. Note that this feature is not reliable and may crash your game.
+## 不能修改的文本字体
 
-## Notes
-* The game will reject characters outside BMP(U+10000 and later) from being input. You can ignore any glyphs past U+FFFE when choosing the glyph ranges.
-* `AXIS_36` glyphs have a maximum ratio limit that are from the corresponding glyphs in `AXIS_18`. If glyphs in `AXIS_18` are narrower than `AXIS_36` when scaled to the same height, `AXIS_36` will not be laid out as you would have expected.
-* `font` can have up to 7 texture files. 6 for `font_lobby`, 10 for `KrnAXIS` and 20 for `ChnAXIS`.
+各种巨大的金色浮雕文本、各种一堆装饰的文本 - 均为图片
+
+## 使用方式
+
+1. 国际服 - 打开即用; 国服/韩服 - 左上角 文件 - 新建 - 中文字体/韩文字体
+2. 依次点击左侧列表选择字体查看
+3. 右侧修改、添加字体, 下方预览文本效果
+4. 完成后, 点击上方 导出 - 导出为模组文件
+5. 使用 TexTools 或 Penumbra 加载你生成的字体模组
+
+## 注意事项
+
+- 国服不存在 LobbyFont (即 大厅字体), 使用的是 Axis, ~~韩服不清楚~~
+- 游戏客户端会自动拒绝任何超出 BMP (U+10000) 范围的字符输入游戏, 因此你可以直接忽略这部分字形 (`U+FFFE`)
+- `AXIS_36` 字体具有来自 `AXIS_18` 中相应字形的最大比率限制。如果缩放到相同高度时, `AXIS_18` 中的字形比 `AXIS_36` 窄，则 `AXIS-36` 的布局将不会如预期排布
+- 单个字体最多可以有 7 个纹理文件。6 代表 `font_lobby`, 10 代表 `KrnAXIS`, 20 代表 `ChnAXIS`
