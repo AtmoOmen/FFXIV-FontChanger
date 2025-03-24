@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "resource.h"
 #include "Structs.h"
 #include "FaceElementEditorDialog.h"
@@ -22,7 +22,7 @@ App::FontEditorWindow::FontEditorWindow(std::vector<std::wstring> args)
 
 	RegisterClassExW(&wcex);
 
-	CreateWindowExW(0, ClassName, L"Font Editor", WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
+	CreateWindowExW(0, ClassName, L"字体编辑器", WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
 		CW_USEDEFAULT, CW_USEDEFAULT, 1200, 640,
 		nullptr, nullptr, nullptr, this);
 }
@@ -51,7 +51,7 @@ void App::FontEditorWindow::Changes_MarkFresh() {
 	m_bChanged = false;
 
 	SetWindowTextW(m_hWnd, std::format(
-		L"{} - Font Editor",
+		L"{} - 字体编辑器",
 		m_path.filename().c_str()
 	).c_str());
 }
@@ -63,14 +63,14 @@ void App::FontEditorWindow::Changes_MarkDirty() {
 	m_bChanged = true;
 
 	SetWindowTextW(m_hWnd, std::format(
-		L"{} - Font Editor*",
+		L"{} - 字体编辑器*",
 		m_path.filename().c_str()
 	).c_str());
 }
 
 bool App::FontEditorWindow::Changes_ConfirmIfDirty() {
 	if (m_bChanged) {
-		switch (MessageBoxW(m_hWnd, L"There are unsaved changes. Do you want to save your changes?", GetWindowString(m_hWnd).c_str(), MB_YESNOCANCEL)) {
+		switch (MessageBoxW(m_hWnd, L"存在未保存的更改. 是否保存这些更改?", GetWindowString(m_hWnd).c_str(), MB_YESNOCANCEL)) {
 			case IDYES:
 				if (Menu_File_Save())
 					return true;
@@ -193,7 +193,7 @@ void App::FontEditorWindow::UpdateFaceElementListViewItem(const Structs::FaceEle
 	setItemText(ListViewColsFamilyName, xivres::util::unicode::convert<std::wstring>(element.GetWrappedFont()->family_name()));
 	setItemText(ListViewColsSubfamilyName, xivres::util::unicode::convert<std::wstring>(element.GetWrappedFont()->subfamily_name()));
 	if (std::fabsf(element.GetWrappedFont()->font_size() - element.Size) >= 0.01f) {
-		setItemText(ListViewColsSize, std::format(L"{:g}px (req. {:g}px)", element.GetWrappedFont()->font_size(), element.Size));
+		setItemText(ListViewColsSize, std::format(L"{:g}px (需求 {:g}px)", element.GetWrappedFont()->font_size(), element.Size));
 	} else {
 		setItemText(ListViewColsSize, std::format(L"{:g}px", element.GetWrappedFont()->font_size()));
 	}
@@ -209,16 +209,16 @@ void App::FontEditorWindow::UpdateFaceElementListViewItem(const Structs::FaceEle
 	setItemText(ListViewColsGlyphCount, std::format(L"{}", element.GetWrappedFont()->all_codepoints().size()));
 	switch (element.MergeMode) {
 		case xivres::fontgen::codepoint_merge_mode::AddNew:
-			setItemText(ListViewColsMergeMode, L"Add New");
+			setItemText(ListViewColsMergeMode, L"添加新字形");
 			break;
 		case xivres::fontgen::codepoint_merge_mode::AddAll:
-			setItemText(ListViewColsMergeMode, L"Add All");
+			setItemText(ListViewColsMergeMode, L"添加所有字形");
 			break;
 		case xivres::fontgen::codepoint_merge_mode::Replace:
-			setItemText(ListViewColsMergeMode, L"Replace");
+			setItemText(ListViewColsMergeMode, L"替换现有字形");
 			break;
 		default:
-			setItemText(ListViewColsMergeMode, L"Invalid");
+			setItemText(ListViewColsMergeMode, L"无效");
 			break;
 	}
 	setItemText(ListViewColsGamma, std::format(L"{:g}", element.Gamma));
@@ -227,11 +227,11 @@ void App::FontEditorWindow::UpdateFaceElementListViewItem(const Structs::FaceEle
 }
 
 std::pair<std::vector<std::shared_ptr<xivres::fontdata::stream>>, std::vector<std::shared_ptr<xivres::texture::memory_mipmap_stream>>> App::FontEditorWindow::CompileCurrentFontSet(ProgressDialog& progressDialog, Structs::FontSet& fontSet) {
-	progressDialog.UpdateStatusMessage("Loading base fonts...");
+	progressDialog.UpdateStatusMessage("正在加载基础字体...");
 	fontSet.ConsolidateFonts();
 
 	{
-		progressDialog.UpdateStatusMessage("Resolving kerning pairs...");
+		progressDialog.UpdateStatusMessage("正在解析字偶距...");
 		xivres::util::thread_pool::pool pool(1);
 		xivres::util::thread_pool::task_waiter<std::pair<Structs::Face*, size_t>> waiter(pool);
 		for (auto& pFace : fontSet.Faces) {
@@ -250,7 +250,7 @@ std::pair<std::vector<std::shared_ptr<xivres::fontdata::stream>>, std::vector<st
 		}
 		if (!tooManyKernings.empty()) {
 			std::ranges::sort(tooManyKernings);
-			std::string s = "The number of kerning entries of the following font(s) exceeds the limit of 65535.";
+			std::string s = "以下字体的字偶距条目数超过了65535的限制:";
 			for (const auto& s2 : tooManyKernings)
 				s += s2;
 			throw std::runtime_error(s);
@@ -270,7 +270,8 @@ std::pair<std::vector<std::shared_ptr<xivres::fontdata::stream>>, std::vector<st
 	while (!packer.wait(std::chrono::milliseconds(200))) {
 		progressDialog.ThrowIfCancelled();
 
-		progressDialog.UpdateStatusMessage(packer.progress_description());
+		std::string descStr = packer.progress_description() ? packer.progress_description() : "";
+		progressDialog.UpdateStatusMessage(descStr);
 		progressDialog.UpdateProgress(packer.progress_scaled());
 	}
 	if (const auto err = packer.get_error_if_failed(); !err.empty())
@@ -279,7 +280,7 @@ std::pair<std::vector<std::shared_ptr<xivres::fontdata::stream>>, std::vector<st
 	const auto& fdts = packer.compiled_fontdatas();
 	const auto& mips = packer.compiled_mipmap_streams();
 	if (mips.empty())
-		throw std::runtime_error("No mipmap produced");
+		throw std::runtime_error("未生成任何多级纹理");
 
 	if (fontSet.ExpectedTexCount != static_cast<int>(mips.size())) {
 		fontSet.ExpectedTexCount = static_cast<int>(mips.size());

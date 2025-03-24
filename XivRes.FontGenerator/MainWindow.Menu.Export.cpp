@@ -6,11 +6,13 @@
 #include "ProgressDialog.h"
 #include "xivres/textools.h"
 
+#pragma code_page(65001)
+
 LRESULT App::FontEditorWindow::Menu_Export_Preview() {
 	using namespace xivres::fontgen;
 
 	try {
-		ProgressDialog progressDialog(m_hWnd, "Exporting...");
+		ProgressDialog progressDialog(m_hWnd, "导出中...");
 		ShowWindow(m_hWnd, SW_HIDE);
 		const auto hideWhilePacking = xivres::util::on_dtor([this]() { ShowWindow(m_hWnd, SW_SHOW); });
 
@@ -34,7 +36,7 @@ LRESULT App::FontEditorWindow::Menu_Export_Preview() {
 	} catch (const ProgressDialog::ProgressDialogCancelledError&) {
 		return 1;
 	} catch (const std::exception& e) {
-		MessageBoxW(m_hWnd, std::format(L"Failed to export: {}", xivres::util::unicode::convert<std::wstring>(e.what())).c_str(), GetWindowString(m_hWnd).c_str(), MB_OK | MB_ICONERROR);
+		MessageBoxW(m_hWnd, std::format(L"导出失败: {}", xivres::util::unicode::convert<std::wstring>(e.what())).c_str(), GetWindowString(m_hWnd).c_str(), MB_OK | MB_ICONERROR);
 		return 1;
 	}
 }
@@ -47,7 +49,7 @@ LRESULT App::FontEditorWindow::Menu_Export_Raw() {
 		DWORD dwFlags;
 		SuccessOrThrow(pDialog.CreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER));
 		SuccessOrThrow(pDialog->SetClientGuid(Guid_IFileDialog_Export));
-		SuccessOrThrow(pDialog->SetTitle(L"Export raw"));
+		SuccessOrThrow(pDialog->SetTitle(L"导出原始文件"));
 		SuccessOrThrow(pDialog->GetOptions(&dwFlags));
 		SuccessOrThrow(pDialog->SetOptions(dwFlags | FOS_FORCEFILESYSTEM | FOS_PICKFOLDERS));
 		switch (SuccessOrThrow(pDialog->Show(m_hWnd), {HRESULT_FROM_WIN32(ERROR_CANCELLED)})) {
@@ -60,12 +62,12 @@ LRESULT App::FontEditorWindow::Menu_Export_Raw() {
 		SuccessOrThrow(pDialog->GetResult(&pResult));
 		SuccessOrThrow(pResult->GetDisplayName(SIGDN_FILESYSPATH, &pszFileName));
 		if (!pszFileName)
-			throw std::runtime_error("DEBUG: The selected file does not have a filesystem path.");
+			throw std::runtime_error("DEBUG: 所选文件没有文件系统路径。");
 
 		std::unique_ptr<std::remove_pointer_t<PWSTR>, decltype(&CoTaskMemFree)> pszFileNamePtr(pszFileName, &CoTaskMemFree);
 		const auto basePath = std::filesystem::path(pszFileName);
 
-		ProgressDialog progressDialog(m_hWnd, "Exporting...");
+		ProgressDialog progressDialog(m_hWnd, "导出中...");
 		ShowWindow(m_hWnd, SW_HIDE);
 		const auto hideWhilePacking = xivres::util::on_dtor([this]() { ShowWindow(m_hWnd, SW_SHOW); });
 
@@ -73,7 +75,7 @@ LRESULT App::FontEditorWindow::Menu_Export_Raw() {
 			const auto [fdts, mips] = CompileCurrentFontSet(progressDialog, *pFontSet);
 
 			progressDialog.UpdateProgress(std::nanf(""));
-			progressDialog.UpdateStatusMessage("Writing to files...");
+			progressDialog.UpdateStatusMessage("正在写入文件...");
 
 			std::vector<char> buf(32768);
 			xivres::texture::stream textureOne(mips[0]->Type, mips[0]->Width, mips[0]->Height, 1, 1, 1);
@@ -120,7 +122,7 @@ LRESULT App::FontEditorWindow::Menu_Export_Raw() {
 	} catch (const ProgressDialog::ProgressDialogCancelledError&) {
 		return 1;
 	} catch (const std::exception& e) {
-		MessageBoxW(m_hWnd, std::format(L"Failed to export: {}", xivres::util::unicode::convert<std::wstring>(e.what())).c_str(), GetWindowString(m_hWnd).c_str(), MB_OK | MB_ICONERROR);
+		MessageBoxW(m_hWnd, std::format(L"导出失败: {}", xivres::util::unicode::convert<std::wstring>(e.what())).c_str(), GetWindowString(m_hWnd).c_str(), MB_OK | MB_ICONERROR);
 		return 1;
 	}
 
@@ -130,9 +132,9 @@ LRESULT App::FontEditorWindow::Menu_Export_Raw() {
 LRESULT App::FontEditorWindow::Menu_Export_TTMP(CompressionMode compressionMode) {
 	using namespace xivres::fontgen;
 	static constexpr COMDLG_FILTERSPEC fileTypes[] = {
-		{L"TTMP2 file (*.ttmp2)", L"*.ttmp2"},
-		{L"ZIP file (*.zip)", L"*.zip"},
-		{L"All files (*.*)", L"*"},
+		{L"TTMP2 文件 (*.ttmp2)", L"*.ttmp2"},
+		{L"ZIP 文件 (*.zip)", L"*.zip"},
+		{L"所有文件 (*.*)", L"*"},
 	};
 	const auto fileTypesSpan = std::span(fileTypes);
 
@@ -144,7 +146,7 @@ LRESULT App::FontEditorWindow::Menu_Export_TTMP(CompressionMode compressionMode)
 		SuccessOrThrow(pDialog->SetClientGuid(Guid_IFileDialog_Export));
 		SuccessOrThrow(pDialog->SetFileTypes(fileTypesSpan.size(), fileTypesSpan.data()));
 		SuccessOrThrow(pDialog->SetFileTypeIndex(0));
-		SuccessOrThrow(pDialog->SetTitle(L"Save"));
+		SuccessOrThrow(pDialog->SetTitle(L"保存"));
 		SuccessOrThrow(pDialog->SetFileName(std::format(L"{}.ttmp2", m_path.filename().replace_extension(L"").wstring()).c_str()));
 		SuccessOrThrow(pDialog->SetDefaultExtension(L"json"));
 		SuccessOrThrow(pDialog->GetOptions(&dwFlags));
@@ -160,7 +162,7 @@ LRESULT App::FontEditorWindow::Menu_Export_TTMP(CompressionMode compressionMode)
 			SuccessOrThrow(pDialog->GetResult(&pResult));
 			SuccessOrThrow(pResult->GetDisplayName(SIGDN_FILESYSPATH, &pszFileName));
 			if (!pszFileName)
-				throw std::runtime_error("DEBUG: The selected file does not have a filesystem path.");
+				throw std::runtime_error("DEBUG: 所选文件没有文件系统路径。");
 
 			finalPath = pszFileName;
 			CoTaskMemFree(pszFileName);
@@ -168,7 +170,7 @@ LRESULT App::FontEditorWindow::Menu_Export_TTMP(CompressionMode compressionMode)
 
 		xivres::textools::simple_ttmp2_writer writer(finalPath);
 
-		ProgressDialog progressDialog(m_hWnd, "Exporting...");
+		ProgressDialog progressDialog(m_hWnd, "导出中...");
 		ShowWindow(m_hWnd, SW_HIDE);
 		const auto hideWhilePacking = xivres::util::on_dtor([this]() { ShowWindow(m_hWnd, SW_SHOW); });
 
@@ -185,7 +187,7 @@ LRESULT App::FontEditorWindow::Menu_Export_TTMP(CompressionMode compressionMode)
 				progressDialog.ThrowIfCancelled();
 
 				const auto targetFileName = std::format("common/font/{}.fdt", pFontSet->Faces[i]->Name);
-				progressDialog.UpdateStatusMessage(std::format("Packing file: {}", targetFileName));
+				progressDialog.UpdateStatusMessage(std::format("正在打包文件: {}", targetFileName));
 
 				writer.add_packed(xivres::compressing_packed_stream<xivres::standard_compressing_packer>(targetFileName, fdts[i], compressionMode == CompressionMode::CompressWhilePacking ? Z_BEST_COMPRESSION : Z_NO_COMPRESSION));
 			}
@@ -195,7 +197,7 @@ LRESULT App::FontEditorWindow::Menu_Export_TTMP(CompressionMode compressionMode)
 
 				const auto i1 = i + 1;
 				const auto targetFileName = std::format("common/font/{}", std::vformat(pFontSet->TexFilenameFormat, std::make_format_args(i1)));
-				progressDialog.UpdateStatusMessage(std::format("Packing file: {}", targetFileName));
+				progressDialog.UpdateStatusMessage(std::format("正在打包文件: {}", targetFileName));
 
 				const auto& mip = mips[i];
 				auto textureOne = std::make_shared<xivres::texture::stream>(mip->Type, mip->Width, mip->Height, 1, 1, 1);
@@ -228,7 +230,7 @@ LRESULT App::FontEditorWindow::Menu_Export_TTMP(CompressionMode compressionMode)
 	} catch (const ProgressDialog::ProgressDialogCancelledError&) {
 		return 1;
 	} catch (const std::exception& e) {
-		MessageBoxW(m_hWnd, std::format(L"Failed to export: {}", xivres::util::unicode::convert<std::wstring>(e.what())).c_str(), GetWindowString(m_hWnd).c_str(), MB_OK | MB_ICONERROR);
+		MessageBoxW(m_hWnd, std::format(L"导出失败: {}", xivres::util::unicode::convert<std::wstring>(e.what())).c_str(), GetWindowString(m_hWnd).c_str(), MB_OK | MB_ICONERROR);
 		return 1;
 	}
 

@@ -74,25 +74,25 @@ LRESULT App::FontEditorWindow::Window_OnCreate(HWND hwnd) {
 		};
 		ListView_InsertColumn(m_hFaceElementsListView, columnIndex, &col);
 	};
-	AddColumn(ListViewColsFamilyName, 120, L"Family");
-	AddColumn(ListViewColsSubfamilyName, 80, L"Subfamily");
-	AddColumn(ListViewColsSize, 80, L"Size");
-	AddColumn(ListViewColsLineHeight, 80, L"Line Height");
-	AddColumn(ListViewColsAscent, 80, L"Ascent");
-	AddColumn(ListViewColsHorizontalOffset, 120, L"Horizontal Offset");
-	AddColumn(ListViewColsLetterSpacing, 100, L"Letter Spacing");
-	AddColumn(ListViewColsGamma, 60, L"Gamma");
-	AddColumn(ListViewColsCodepoints, 80, L"Codepoints");
-	AddColumn(ListViewColsMergeMode, 70, L"Overwrite");
-	AddColumn(ListViewColsGlyphCount, 60, L"Glyphs");
-	AddColumn(ListViewColsRenderer, 180, L"Renderer");
-	AddColumn(ListViewColsLookup, 300, L"Lookup");
+	AddColumn(ListViewColsFamilyName, 120, L"字体");
+	AddColumn(ListViewColsSubfamilyName, 80, L"变体");
+	AddColumn(ListViewColsSize, 80, L"字号");
+	AddColumn(ListViewColsLineHeight, 80, L"行高");
+	AddColumn(ListViewColsAscent, 80, L"上延距离");
+	AddColumn(ListViewColsHorizontalOffset, 120, L"水平偏移");
+	AddColumn(ListViewColsLetterSpacing, 100, L"字距");
+	AddColumn(ListViewColsGamma, 60, L"伽马值");
+	AddColumn(ListViewColsCodepoints, 80, L"码位");
+	AddColumn(ListViewColsMergeMode, 70, L"覆盖");
+	AddColumn(ListViewColsGlyphCount, 60, L"字形数");
+	AddColumn(ListViewColsRenderer, 180, L"渲染器");
+	AddColumn(ListViewColsLookup, 300, L"查询");
 
 	if (m_args.size() >= 2 && std::filesystem::exists(m_args[1])) {
 		try {
 			SetCurrentMultiFontSet(m_args[1]);
 		} catch (const std::exception& e) {
-			MessageBoxW(m_hWnd, std::format(L"Failed to open file: {}", xivres::util::unicode::convert<std::wstring>(e.what())).c_str(), GetWindowString(m_hWnd).c_str(), MB_OK | MB_ICONERROR);
+			MessageBoxW(m_hWnd, std::format(L"无法打开文件: {}", xivres::util::unicode::convert<std::wstring>(e.what())).c_str(), GetWindowString(m_hWnd).c_str(), MB_OK | MB_ICONERROR);
 		}
 	}
 	if (m_path.empty())

@@ -1,6 +1,8 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "resource.h"
 #include "ProgressDialog.h"
+
+#pragma code_page(65001)
 
 struct App::ProgressDialog::ControlStruct {
 	HWND Window;
@@ -56,7 +58,8 @@ bool App::ProgressDialog::IsCancelled() const {
 }
 
 void App::ProgressDialog::UpdateStatusMessage(const std::string& s) {
-	Static_SetText(m_controls->StepNameStatic, xivres::util::unicode::convert<std::wstring>(s).c_str());
+	auto wstr = xivres::util::unicode::convert<std::wstring>(s);
+	SendMessageW(m_controls->StepNameStatic, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(wstr.c_str()));
 }
 
 void App::ProgressDialog::UpdateProgress(float progress) {
@@ -70,7 +73,9 @@ void App::ProgressDialog::UpdateProgress(float progress) {
 }
 
 INT_PTR App::ProgressDialog::Dialog_OnInitDialog() {
-	SetWindowTextW(m_controls->Window, xivres::util::unicode::convert<std::wstring>(m_windowTitle).c_str());
+	auto titleWstr = xivres::util::unicode::convert<std::wstring>(m_windowTitle);
+	SendMessageW(m_controls->Window, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(titleWstr.c_str()));
+	
 	SendMessageW(m_controls->ProgrssBar, PBM_SETRANGE32, 0, 10000);
 	UpdateProgress(std::nanf(""));
 
