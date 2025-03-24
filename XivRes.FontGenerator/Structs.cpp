@@ -26,7 +26,7 @@ std::shared_ptr<xivres::fontgen::fixed_size_font> GetGameFont(xivres::fontgen::g
 			std::ofstream out("config.json", std::ios::binary);
 			const unsigned char bom[] = { 0xEF, 0xBB, 0xBF };
 			out.write(reinterpret_cast<const char*>(bom), sizeof(bom));
-			out << pathconf.dump(4); // 使用4个空格缩进美化输出
+			out << pathconf.dump(4);
 		} else {
 			std::ifstream in("config.json", std::ios::binary);
 			char bom[3];
@@ -129,8 +129,8 @@ std::shared_ptr<xivres::fontgen::fixed_size_font> GetGameFont(xivres::fontgen::g
 		if (!showed) {
 			showed = true;
 			MessageBoxW(nullptr, std::format(
-				L"Failed to find corresponding game installation ({}). Specify it in config.json. Delete config.json and run this program again to start anew. Suppressing this message from now on.",
-				xivres::util::unicode::convert<std::wstring>(e.what())).c_str(), L"Error", MB_OK);
+				L"未能找到对应的游戏安装目录 ({}). 请在config.json中指定路径。删除config.json并重新运行此程序以重新开始。此消息将不再显示。",
+				xivres::util::unicode::convert<std::wstring>(e.what())).c_str(), L"错误", MB_OK);
 		}
 	}
 
@@ -139,43 +139,43 @@ std::shared_ptr<xivres::fontgen::fixed_size_font> GetGameFont(xivres::fontgen::g
 
 std::wstring App::Structs::LookupStruct::GetWeightString() const {
 	switch (Weight) {
-		case DWRITE_FONT_WEIGHT_THIN: return L"Thin";
-		case DWRITE_FONT_WEIGHT_EXTRA_LIGHT: return L"Extra Light";
-		case DWRITE_FONT_WEIGHT_LIGHT: return L"Light";
-		case DWRITE_FONT_WEIGHT_SEMI_LIGHT: return L"Semi Light";
-		case DWRITE_FONT_WEIGHT_NORMAL: return L"Normal";
-		case DWRITE_FONT_WEIGHT_MEDIUM: return L"Medium";
-		case DWRITE_FONT_WEIGHT_SEMI_BOLD: return L"Semi Bold";
-		case DWRITE_FONT_WEIGHT_BOLD: return L"Bold";
-		case DWRITE_FONT_WEIGHT_EXTRA_BOLD: return L"Extra Bold";
-		case DWRITE_FONT_WEIGHT_BLACK: return L"Black";
-		case DWRITE_FONT_WEIGHT_EXTRA_BLACK: return L"Extra Black";
+		case DWRITE_FONT_WEIGHT_THIN: return L"极细";
+		case DWRITE_FONT_WEIGHT_EXTRA_LIGHT: return L"特细";
+		case DWRITE_FONT_WEIGHT_LIGHT: return L"细体";
+		case DWRITE_FONT_WEIGHT_SEMI_LIGHT: return L"半细";
+		case DWRITE_FONT_WEIGHT_NORMAL: return L"常规";
+		case DWRITE_FONT_WEIGHT_MEDIUM: return L"中等";
+		case DWRITE_FONT_WEIGHT_SEMI_BOLD: return L"半粗";
+		case DWRITE_FONT_WEIGHT_BOLD: return L"粗体";
+		case DWRITE_FONT_WEIGHT_EXTRA_BOLD: return L"特粗";
+		case DWRITE_FONT_WEIGHT_BLACK: return L"黑体";
+		case DWRITE_FONT_WEIGHT_EXTRA_BLACK: return L"特黑";
 		default: return std::format(L"{}", static_cast<int>(Weight));
 	}
 }
 
 std::wstring App::Structs::LookupStruct::GetStretchString() const {
 	switch (Stretch) {
-		case DWRITE_FONT_STRETCH_UNDEFINED: return L"Undefined";
-		case DWRITE_FONT_STRETCH_ULTRA_CONDENSED: return L"Ultra Condensed";
-		case DWRITE_FONT_STRETCH_EXTRA_CONDENSED: return L"Extra Condensed";
-		case DWRITE_FONT_STRETCH_CONDENSED: return L"Condensed";
-		case DWRITE_FONT_STRETCH_SEMI_CONDENSED: return L"Semi Condensed";
-		case DWRITE_FONT_STRETCH_NORMAL: return L"Normal";
-		case DWRITE_FONT_STRETCH_SEMI_EXPANDED: return L"Semi Expanded";
-		case DWRITE_FONT_STRETCH_EXPANDED: return L"Expanded";
-		case DWRITE_FONT_STRETCH_EXTRA_EXPANDED: return L"Extra Expanded";
-		case DWRITE_FONT_STRETCH_ULTRA_EXPANDED: return L"Ultra Expanded";
-		default: return L"Invalid";
+		case DWRITE_FONT_STRETCH_UNDEFINED: return L"未定义";
+		case DWRITE_FONT_STRETCH_ULTRA_CONDENSED: return L"极度压缩";
+		case DWRITE_FONT_STRETCH_EXTRA_CONDENSED: return L"特度压缩";
+		case DWRITE_FONT_STRETCH_CONDENSED: return L"压缩";
+		case DWRITE_FONT_STRETCH_SEMI_CONDENSED: return L"半压缩";
+		case DWRITE_FONT_STRETCH_NORMAL: return L"正常";
+		case DWRITE_FONT_STRETCH_SEMI_EXPANDED: return L"半扩展";
+		case DWRITE_FONT_STRETCH_EXPANDED: return L"扩展";
+		case DWRITE_FONT_STRETCH_EXTRA_EXPANDED: return L"特度扩展";
+		case DWRITE_FONT_STRETCH_ULTRA_EXPANDED: return L"极度扩展";
+		default: return L"无效";
 	}
 }
 
 std::wstring App::Structs::LookupStruct::GetStyleString() const {
 	switch (Style) {
-		case DWRITE_FONT_STYLE_NORMAL: return L"Normal";
-		case DWRITE_FONT_STYLE_OBLIQUE: return L"Oblique";
-		case DWRITE_FONT_STYLE_ITALIC: return L"Italic";
-		default: return L"Invalid";
+		case DWRITE_FONT_STYLE_NORMAL: return L"正常";
+		case DWRITE_FONT_STYLE_OBLIQUE: return L"倾斜";
+		case DWRITE_FONT_STYLE_ITALIC: return L"斜体";
+		default: return L"无效";
 	}
 }
 
@@ -395,10 +395,10 @@ std::wstring App::Structs::FaceElement::GetRangeRepresentation() const {
 std::wstring App::Structs::FaceElement::GetRendererRepresentation() const {
 	switch (Renderer) {
 		case RendererEnum::Empty:
-			return L"Empty";
+			return L"空";
 
 		case RendererEnum::PrerenderedGameInstallation:
-			return L"Prerendered (Game)";
+			return L"预渲染 (游戏)";
 
 		case RendererEnum::DirectWrite:
 			return std::format(L"DirectWrite ({}, {}, {})",
@@ -411,7 +411,7 @@ std::wstring App::Structs::FaceElement::GetRendererRepresentation() const {
 			return std::format(L"FreeType ({}, {})", RendererSpecific.FreeType.get_render_mode_string(), RendererSpecific.FreeType.get_load_flags_string());
 
 		default:
-			return L"INVALID";
+			return L"无效";
 	}
 }
 
