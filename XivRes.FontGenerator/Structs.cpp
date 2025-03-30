@@ -71,10 +71,21 @@ std::shared_ptr<xivres::fontgen::fixed_size_font> GetGameFont(xivres::fontgen::g
 						for (const auto& path : pathconf[validRegion]) {
 							try {
 								std::string pathStr = path.get<std::string>();
-								std::filesystem::path fsPath(xivres::util::unicode::convert<std::wstring>(pathStr));
+								
+								// Unicode 转换
+								std::wstring wPathStr = xivres::util::unicode::convert<std::wstring>(pathStr);
+								std::filesystem::path fsPath(wPathStr);
+								
+								// 宽字符路径转本地编码
 								font = xivres::installation(fsPath.string()).get_fontdata_set(xivres::font_type::font);
-								break;
-							} catch (...) {}
+								if (font) {
+									break;
+								}
+							} catch (const std::exception& e) {
+								OutputDebugStringW(std::format(
+									L"路径处理错误: {}\n", 
+									xivres::util::unicode::convert<std::wstring>(e.what())).c_str());
+							}
 						}
 
 						if (font)
@@ -93,10 +104,19 @@ std::shared_ptr<xivres::fontgen::fixed_size_font> GetGameFont(xivres::fontgen::g
 						for (const auto& path : pathconf[validRegion]) {
 							try {
 								std::string pathStr = path.get<std::string>();
-								std::filesystem::path fsPath(xivres::util::unicode::convert<std::wstring>(pathStr));
+								
+								std::wstring wPathStr = xivres::util::unicode::convert<std::wstring>(pathStr);
+								std::filesystem::path fsPath(wPathStr);
+								
 								font = xivres::installation(fsPath.string()).get_fontdata_set(xivres::font_type::chn_axis);
-								break;
-							} catch (...) {}
+								if (font) {
+									break;
+								}
+							} catch (const std::exception& e) {
+								OutputDebugStringW(std::format(
+									L"中文路径处理错误: {}\n", 
+									xivres::util::unicode::convert<std::wstring>(e.what())).c_str());
+							}
 						}
 					}
 					if (!font)
@@ -112,10 +132,19 @@ std::shared_ptr<xivres::fontgen::fixed_size_font> GetGameFont(xivres::fontgen::g
 						for (const auto& path : pathconf[validRegion]) {
 							try {
 								std::string pathStr = path.get<std::string>();
-								std::filesystem::path fsPath(xivres::util::unicode::convert<std::wstring>(pathStr));
+								
+								std::wstring wPathStr = xivres::util::unicode::convert<std::wstring>(pathStr);
+								std::filesystem::path fsPath(wPathStr);
+								
 								font = xivres::installation(fsPath.string()).get_fontdata_set(xivres::font_type::krn_axis);
-								break;
-							} catch (...) {}
+								if (font) {
+									break;
+								}
+							} catch (const std::exception& e) {
+								OutputDebugStringW(std::format(
+									L"韩文路径处理错误: {}\n", 
+									xivres::util::unicode::convert<std::wstring>(e.what())).c_str());
+							}
 						}
 					}
 					if (!font)
@@ -129,7 +158,7 @@ std::shared_ptr<xivres::fontgen::fixed_size_font> GetGameFont(xivres::fontgen::g
 		if (!showed) {
 			showed = true;
 			MessageBoxW(nullptr, std::format(
-				L"未能找到对应的游戏安装目录 ({}). 请在 config.json 中指定路径。删除 config.json 并重新运行此程序以重新开始。此消息将不再显示。",
+				L"未能找到对应的游戏安装目录 ({}). 请在 config.json 中修改相关游戏路径, 保存后重新启动本程序",
 				xivres::util::unicode::convert<std::wstring>(e.what())).c_str(), L"错误", MB_OK);
 		}
 	}
