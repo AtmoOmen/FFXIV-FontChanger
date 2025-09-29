@@ -5,39 +5,22 @@
 #include "FaceElementEditorDialog.h"
 #include "Structs.h"
 #include "MainWindow.h"
+#include "FontGeneratorConfig.h"
 
 #pragma comment(lib, "Comctl32.lib")
-#pragma comment(linker,"\"/manifestdependency:type='win32' \
-name='Microsoft.Windows.Common-Controls' version='6.0.0.0' \
-processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#pragma comment(linker,"\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 HINSTANCE g_hInstance;
+WORD g_langId;
+std::wstring g_localeName;
+FontGeneratorConfig g_config;
 
 int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nShowCmd) {
 	g_hInstance = hInstance;
 
-	// std::vector<std::vector<FontSet>> sets;
-	// sets.emplace_back(ReadFontSets(LR"(C:\Program Files (x86)\SquareEnix\FINAL FANTASY XIV - A Realm Reborn\game\ffxiv_dx11.exe)"));
-	// sets.emplace_back(ReadFontSets(LR"(C:\Program Files (x86)\SNDA\FFXIV\game\ffxiv_dx11.exe)"));
-	// sets.emplace_back(ReadFontSets(LR"(C:\Program Files (x86)\FINAL FANTASY XIV - KOREA\game\ffxiv_dx11.exe)"));
-
-	//{
-	//	std::ofstream test("Z:/fonts.csv");
-	//	for (const auto& set : sets[0])
-	//		test << std::format("g,0x{:X},,", set.VirtualAddress);
-	//	for (const auto& set : sets[1])
-	//		test << std::format("c,0x{:X},,", set.VirtualAddress);
-	//	for (const auto& set : sets[2])
-	//		test << std::format("k,0x{:X},,", set.VirtualAddress);
-	//	test << std::endl;
-	//	for (int i = 0; i < 0x29; i++) {
-	//		for (const auto& sets2 : sets) {
-	//			for (const auto& set : sets2)
-	//				test << std::format("{},{},{},", set.Faces[i].TexCount, set.Faces[i].TexPattern, set.Faces[i].Fdt);
-	//		}
-	//		test << std::endl;
-	//	}
-	//}
+	SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+	if (FAILED(CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED)))
+		return -1;
 
 	std::vector<std::wstring> args;
 	if (int nArgs{}; LPWSTR* szArgList = CommandLineToArgvW(GetCommandLineW(), &nArgs)) {
@@ -46,6 +29,42 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nShowCmd) {
 				args.emplace_back(szArgList[i]);
 			LocalFree(szArgList);
 		}
+	}
+
+	if (wchar_t localeName[LOCALE_NAME_MAX_LENGTH];
+		GetUserDefaultLocaleName(localeName, LOCALE_NAME_MAX_LENGTH)) {
+		g_localeName = localeName;
+	} else {
+		g_localeName = L"en-us";
+	}
+
+	g_langId = LANGIDFROMLCID(LocaleNameToLCID(g_localeName.c_str(), LOCALE_ALLOW_NEUTRAL_NAMES));
+
+	try {
+		if (!exists(FontGeneratorConfig::GetConfigPath())) {
+			nlohmann::json json;
+			to_json(json, g_config = FontGeneratorConfig::Default);
+
+			std::ofstream configFile(FontGeneratorConfig::GetConfigPath());
+			configFile << json;
+		} else if (std::ifstream configFile(FontGeneratorConfig::GetConfigPath()); configFile) {
+			nlohmann::json json;
+			configFile >> json;
+			from_json(json, g_config);
+			if (!g_config.Language.empty()) {
+				g_localeName = xivres::util::unicode::convert<std::wstring>(g_config.Language);
+				g_langId = LANGIDFROMLCID(LocaleNameToLCID(g_localeName.c_str(), LOCALE_ALLOW_NEUTRAL_NAMES));
+			}
+		}
+	} catch (const WException& e) {
+		ShowErrorMessageBox(nullptr, IDS_ERROR_OPENFILEFAILURE_BODY, e);
+		return 1;
+	} catch (const std::system_error& e) {
+		ShowErrorMessageBox(nullptr, IDS_ERROR_OPENFILEFAILURE_BODY, e);
+		return 1;
+	} catch (const std::exception& e) {
+		ShowErrorMessageBox(nullptr, IDS_ERROR_OPENFILEFAILURE_BODY, e);
+		return 1;
 	}
 
 	App::FontEditorWindow window(std::move(args));
@@ -58,41 +77,4 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nShowCmd) {
 	}
 
 	return 0;
-}
-
-HRESULT SuccessOrThrow(HRESULT hr, std::initializer_list<HRESULT> acceptables) {
-	if (SUCCEEDED(hr))
-		return hr;
-
-	for (const auto& h : acceptables) {
-		if (h == hr)
-			return hr;
-	}
-
-	const auto err = _com_error(hr);
-	wchar_t* pszMsg = nullptr;
-	FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER |
-		FORMAT_MESSAGE_FROM_SYSTEM |
-		FORMAT_MESSAGE_IGNORE_INSERTS,
-		nullptr,
-		hr,
-		MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US),
-		reinterpret_cast<LPWSTR>(&pszMsg),
-		0,
-		NULL);
-	if (pszMsg) {
-		std::unique_ptr<wchar_t, decltype(&LocalFree)> pszMsgFree(pszMsg, &LocalFree);
-
-		throw std::runtime_error(std::format(
-			"Error (HRESULT=0x{:08X}): {}",
-			static_cast<uint32_t>(hr),
-			xivres::util::unicode::convert<std::string>(std::wstring(pszMsg))
-		));
-	} else {
-		throw std::runtime_error(std::format(
-			"Error (HRESULT=0x{:08X})",
-			static_cast<uint32_t>(hr),
-			xivres::util::unicode::convert<std::string>(std::wstring(pszMsg))
-		));
-	}
 }

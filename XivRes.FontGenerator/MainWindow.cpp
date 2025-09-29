@@ -16,29 +16,51 @@ App::FontEditorWindow::FontEditorWindow(std::vector<std::wstring> args)
 		.hInstance = g_hInstance,
 		.hCursor = LoadCursorW(nullptr, IDC_ARROW),
 		.hbrBackground = GetStockBrush(WHITE_BRUSH),
-		.lpszMenuName = MAKEINTRESOURCEW(IDR_FONTEDITOR),
+		.lpszMenuName = nullptr,
 		.lpszClassName = ClassName,
 	};
 
 	RegisterClassExW(&wcex);
 
-	CreateWindowExW(0, ClassName, L"字体编辑器", WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
-		CW_USEDEFAULT, CW_USEDEFAULT, 1200, 640,
-		nullptr, nullptr, nullptr, this);
+	if (!CreateWindowExW(0, ClassName, L"字体编辑器", WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
+		CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+		nullptr, nullptr, nullptr, this))
+		throw std::system_error(std::error_code(GetLastError(), std::system_category()));
 }
 
 App::FontEditorWindow::~FontEditorWindow() = default;
 
-void App::FontEditorWindow::SetCurrentMultiFontSet(const std::filesystem::path& path) {
-	const auto s = xivres::file_stream(path).read_vector<char>();
-	const auto j = nlohmann::json::parse(s.begin(), s.end());
-	SetCurrentMultiFontSet(j.get<Structs::MultiFontSet>(), path, false);
+void App::FontEditorWindow::SetCurrentMultiFontSet(IShellItemPtr path) {
+	IBindCtxPtr bindCtx;
+	SuccessOrThrow(CreateBindCtx(0, &bindCtx));
+
+	BIND_OPTS bindOpts{
+		.cbStruct = sizeof bindOpts,
+		.grfMode = STGM_READ | STGM_SHARE_DENY_WRITE,
+	};
+	SuccessOrThrow(bindCtx->SetBindOptions(&bindOpts));
+
+	IStreamPtr stream;
+	SuccessOrThrow(path->BindToHandler(bindCtx, BHID_Stream, IID_PPV_ARGS(&stream)));
+
+	STATSTG stat;
+	SuccessOrThrow(stream->Stat(&stat, STATFLAG_NONAME));
+	std::vector<char> buf(stat.cbSize.QuadPart);
+
+	for (std::span remaining(buf); !remaining.empty();) {
+		ULONG read;
+		SuccessOrThrow(stream->Read(buf.data(), static_cast<ULONG>((std::min<size_t>)(buf.size(), 0x10000000)), &read));
+		if (!read)
+			throw std::system_error(std::error_code(ERROR_HANDLE_EOF, std::system_category()));
+		remaining = remaining.subspan(read);
+	}
+	const auto j = nlohmann::json::parse(buf.begin(), buf.end());
+	SetCurrentMultiFontSet(j.get<Structs::MultiFontSet>(), std::move(path), false);
 }
 
-void App::FontEditorWindow::SetCurrentMultiFontSet(Structs::MultiFontSet multiFontSet, std::filesystem::path path, bool fakePath) {
+void App::FontEditorWindow::SetCurrentMultiFontSet(Structs::MultiFontSet multiFontSet, IShellItemPtr path, bool fakePath) {
 	m_multiFontSet = std::move(multiFontSet);
-	m_path = std::move(path);
-	m_bPathIsNotReal = fakePath;
+	m_currentShellItem = std::move(path);
 
 	m_pFontSet = nullptr;
 	m_pActiveFace = nullptr;
@@ -47,13 +69,28 @@ void App::FontEditorWindow::SetCurrentMultiFontSet(Structs::MultiFontSet multiFo
 	Changes_MarkFresh();
 }
 
+std::wstring App::FontEditorWindow::GetCurrentFileName() {
+	std::wstring fileName(GetStringResource(IDS_FILENAME_UNTITLED));
+	if (m_currentShellItem) {
+		PWSTR pszFileName;
+		SuccessOrThrow(m_currentShellItem->GetDisplayName(SIGDN_NORMALDISPLAY, &pszFileName));
+		if (pszFileName)
+			fileName = pszFileName;
+		CoTaskMemFree(pszFileName);
+	}
+
+	return fileName;
+}
+
 void App::FontEditorWindow::Changes_MarkFresh() {
 	m_bChanged = false;
 
-	SetWindowTextW(m_hWnd, std::format(
-		L"{} - 字体编辑器",
-		m_path.filename().c_str()
-	).c_str());
+	const auto fileName = GetCurrentFileName();
+	SetWindowTextW(
+		m_hWnd,
+		std::vformat(
+			GetStringResource(IDS_WINDOWTITLE_FONTEDITOR),
+			std::make_wformat_args(fileName)).c_str());
 }
 
 void App::FontEditorWindow::Changes_MarkDirty() {
@@ -62,15 +99,21 @@ void App::FontEditorWindow::Changes_MarkDirty() {
 
 	m_bChanged = true;
 
-	SetWindowTextW(m_hWnd, std::format(
-		L"{} - 字体编辑器*",
-		m_path.filename().c_str()
-	).c_str());
+	const auto fileName = GetCurrentFileName();
+	SetWindowTextW(
+		m_hWnd,
+		std::vformat(
+			GetStringResource(IDS_WINDOWTITLE_FONTEDITOR_CHANGED),
+			std::make_wformat_args(fileName)).c_str());
 }
 
 bool App::FontEditorWindow::Changes_ConfirmIfDirty() {
 	if (m_bChanged) {
-		switch (MessageBoxW(m_hWnd, L"存在未保存的更改. 是否保存这些更改?", GetWindowString(m_hWnd).c_str(), MB_YESNOCANCEL)) {
+		switch (MessageBoxW(
+			m_hWnd,
+			std::wstring(GetStringResource(IDS_CONFIRM_UNSAVEDEXIT)).c_str(),
+			GetWindowString(m_hWnd).c_str(),
+			MB_YESNOCANCEL)) {
 			case IDYES:
 				if (Menu_File_Save())
 					return true;
@@ -193,7 +236,7 @@ void App::FontEditorWindow::UpdateFaceElementListViewItem(const Structs::FaceEle
 	setItemText(ListViewColsFamilyName, xivres::util::unicode::convert<std::wstring>(element.GetWrappedFont()->family_name()));
 	setItemText(ListViewColsSubfamilyName, xivres::util::unicode::convert<std::wstring>(element.GetWrappedFont()->subfamily_name()));
 	if (std::fabsf(element.GetWrappedFont()->font_size() - element.Size) >= 0.01f) {
-		setItemText(ListViewColsSize, std::format(L"{:g}px (需求 {:g}px)", element.GetWrappedFont()->font_size(), element.Size));
+		setItemText(ListViewColsSize, std::format(L"{:g}px (!= {:g}px)", element.GetWrappedFont()->font_size(), element.Size));
 	} else {
 		setItemText(ListViewColsSize, std::format(L"{:g}px", element.GetWrappedFont()->font_size()));
 	}
@@ -209,16 +252,16 @@ void App::FontEditorWindow::UpdateFaceElementListViewItem(const Structs::FaceEle
 	setItemText(ListViewColsGlyphCount, std::format(L"{}", element.GetWrappedFont()->all_codepoints().size()));
 	switch (element.MergeMode) {
 		case xivres::fontgen::codepoint_merge_mode::AddNew:
-			setItemText(ListViewColsMergeMode, L"添加新字形");
+			setItemText(ListViewColsMergeMode, std::wstring(GetStringResource(IDS_CODEPOINTMERGEMODE_ADDNEW)));
 			break;
 		case xivres::fontgen::codepoint_merge_mode::AddAll:
-			setItemText(ListViewColsMergeMode, L"添加所有字形");
+			setItemText(ListViewColsMergeMode, std::wstring(GetStringResource(IDS_CODEPOINTMERGEMODE_ADDALL)));
 			break;
 		case xivres::fontgen::codepoint_merge_mode::Replace:
-			setItemText(ListViewColsMergeMode, L"替换现有字形");
+			setItemText(ListViewColsMergeMode, std::wstring(GetStringResource(IDS_CODEPOINTMERGEMODE_REPLACE)));
 			break;
 		default:
-			setItemText(ListViewColsMergeMode, L"无效");
+			setItemText(ListViewColsMergeMode, L"???");
 			break;
 	}
 	setItemText(ListViewColsGamma, std::format(L"{:g}", element.Gamma));
@@ -227,11 +270,11 @@ void App::FontEditorWindow::UpdateFaceElementListViewItem(const Structs::FaceEle
 }
 
 std::pair<std::vector<std::shared_ptr<xivres::fontdata::stream>>, std::vector<std::shared_ptr<xivres::texture::memory_mipmap_stream>>> App::FontEditorWindow::CompileCurrentFontSet(ProgressDialog& progressDialog, Structs::FontSet& fontSet) {
-	progressDialog.UpdateStatusMessage("正在加载基础字体...");
+	progressDialog.UpdateStatusMessage(GetStringResource(IDS_EXPORTPROGRESS_LOADFONTS));
 	fontSet.ConsolidateFonts();
 
 	{
-		progressDialog.UpdateStatusMessage("正在解析字偶距...");
+		progressDialog.UpdateStatusMessage(GetStringResource(IDS_EXPORTPROGRESS_KERNINGPAIRS));
 		xivres::util::thread_pool::pool pool(1);
 		xivres::util::thread_pool::task_waiter<std::pair<Structs::Face*, size_t>> waiter(pool);
 		for (auto& pFace : fontSet.Faces) {
@@ -250,10 +293,10 @@ std::pair<std::vector<std::shared_ptr<xivres::fontdata::stream>>, std::vector<st
 		}
 		if (!tooManyKernings.empty()) {
 			std::ranges::sort(tooManyKernings);
-			std::string s = "以下字体的字偶距条目数超过了65535的限制:";
+			std::wstring s(GetStringResource(IDS_ERROR_KERNINGTABLETOOLARGE));
 			for (const auto& s2 : tooManyKernings)
-				s += s2;
-			throw std::runtime_error(s);
+				s += xivres::util::unicode::convert<std::wstring>(s2);
+			throw WException(s);
 		}
 	}
 	progressDialog.ThrowIfCancelled();
@@ -270,8 +313,23 @@ std::pair<std::vector<std::shared_ptr<xivres::fontdata::stream>>, std::vector<st
 	while (!packer.wait(std::chrono::milliseconds(200))) {
 		progressDialog.ThrowIfCancelled();
 
-		std::string descStr = packer.progress_description() ? packer.progress_description() : "";
-		progressDialog.UpdateStatusMessage(descStr);
+		switch (packer.progress_description()) {
+			case xivres::fontgen::fontdata_packer::progress_status_t::prepare_source_fonts:
+				progressDialog.UpdateStatusMessage(GetStringResource(IDS_COMPILESTATUS_PREPARESOURCEFONTS));
+				break;
+			case xivres::fontgen::fontdata_packer::progress_status_t::prepare_target_fonts:
+				progressDialog.UpdateStatusMessage(GetStringResource(IDS_COMPILESTATUS_PREPARETARGETFONTS));
+				break;
+			case xivres::fontgen::fontdata_packer::progress_status_t::discover_glyphs:
+				progressDialog.UpdateStatusMessage(GetStringResource(IDS_COMPILESTATUS_DISCOVERGLYPHS));
+				break;
+			case xivres::fontgen::fontdata_packer::progress_status_t::measure_glyphs:
+				progressDialog.UpdateStatusMessage(GetStringResource(IDS_COMPILESTATUS_MEASUREGLYPHS));
+				break;
+			case xivres::fontgen::fontdata_packer::progress_status_t::layout_and_draw:
+				progressDialog.UpdateStatusMessage(GetStringResource(IDS_COMPILESTATUS_LAYOUTANDDRAW));
+				break;
+		}
 		progressDialog.UpdateProgress(packer.progress_scaled());
 	}
 	if (const auto err = packer.get_error_if_failed(); !err.empty())

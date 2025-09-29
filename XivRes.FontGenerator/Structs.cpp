@@ -1,6 +1,9 @@
 ﻿#include "pch.h"
 #include "Structs.h"
 
+#include "FontGeneratorConfig.h"
+#include "resource.h"
+
 std::shared_ptr<xivres::fontgen::fixed_size_font> GetGameFont(xivres::fontgen::game_font_family family, float size) {
 	static std::map<xivres::font_type, xivres::fontgen::game_fontdata_set> s_fontSet;
 	static std::mutex s_mtx;
@@ -9,54 +12,7 @@ std::shared_ptr<xivres::fontgen::fixed_size_font> GetGameFont(xivres::fontgen::g
 
 	std::shared_ptr<xivres::fontgen::game_fontdata_set> strong;
 
-	auto pathconf = nlohmann::json::object();
-	pathconf["global"] = nlohmann::json::array({R"(C:\Program Files (x86)\SquareEnix\FINAL FANTASY XIV - A Realm Reborn\game)"});
-	
-	std::string chinesePath1 = reinterpret_cast<const char*>(u8"E:\\Program Files (x86)\\上海数龙科技有限公司\\最终幻想XIV\\");
-	std::string chinesePath2 = reinterpret_cast<const char*>(u8"E:\\Program Files (x86)\\上海数龙科技有限公司\\最终幻想XIV\\game");
-	
-	pathconf["chinese"] = nlohmann::json::array({
-		chinesePath1,
-		chinesePath2,
-	});
-	pathconf["korean"] = nlohmann::json::array({R"(C:\Program Files (x86)\FINAL FANTASY XIV - KOREA\game)"});
-
-	try {
-		if (!exists(std::filesystem::path("config.json"))) {
-			std::ofstream out("config.json", std::ios::binary);
-			const unsigned char bom[] = { 0xEF, 0xBB, 0xBF };
-			out.write(reinterpret_cast<const char*>(bom), sizeof(bom));
-			out << pathconf.dump(4);
-		} else {
-			std::ifstream in("config.json", std::ios::binary);
-			char bom[3];
-			in.read(bom, 3);
-			if (!(bom[0] == (char)0xEF && bom[1] == (char)0xBB && bom[2] == (char)0xBF)) {
-				in.seekg(0);
-			}
-			
-			try {
-				pathconf = nlohmann::json::parse(in);
-			} catch (const nlohmann::json::parse_error& e) {
-				std::ofstream out("config.json.new", std::ios::binary);
-				const unsigned char bom[] = { 0xEF, 0xBB, 0xBF };
-				out.write(reinterpret_cast<const char*>(bom), sizeof(bom));
-				out << pathconf.dump(4);
-				
-				if (exists(std::filesystem::path("config.json.bak")))
-					std::filesystem::remove("config.json.bak");
-				std::filesystem::rename("config.json", "config.json.bak");
-				std::filesystem::rename("config.json.new", "config.json");
-				
-				MessageBoxW(nullptr, L"配置文件解析失败，已创建新的配置文件。", L"提示", MB_OK);
-			}
-		}
-	} catch (const std::exception& e) {
-		MessageBoxW(nullptr, std::format(
-			L"配置文件操作失败: {}",
-			xivres::util::unicode::convert<std::wstring>(e.what())).c_str(), L"错误", MB_OK);
-	}
-
+	static bool showedGameNotFoundError = false;
 	try {
 		switch (family) {
 			case xivres::fontgen::game_font_family::AXIS:
@@ -67,25 +23,12 @@ std::shared_ptr<xivres::fontgen::fixed_size_font> GetGameFont(xivres::fontgen::g
 			case xivres::fontgen::game_font_family::TrumpGothic: {
 				auto& font = s_fontSet[xivres::font_type::font];
 				if (!font) {
-					for (const auto validRegion : {"global", "chinese", "korean"}) {
-						for (const auto& path : pathconf[validRegion]) {
+					for (const auto pathList : {g_config.Global, g_config.China, g_config.Korea}) {
+						for (const auto& path : pathList) {
 							try {
-								std::string pathStr = path.get<std::string>();
-								
-								// Unicode 转换
-								std::wstring wPathStr = xivres::util::unicode::convert<std::wstring>(pathStr);
-								std::filesystem::path fsPath(wPathStr);
-								
-								// 宽字符路径转本地编码
-								font = xivres::installation(fsPath.string()).get_fontdata_set(xivres::font_type::font);
-								if (font) {
-									break;
-								}
-							} catch (const std::exception& e) {
-								OutputDebugStringW(std::format(
-									L"路径处理错误: {}\n", 
-									xivres::util::unicode::convert<std::wstring>(e.what())).c_str());
-							}
+								font = xivres::installation(path).get_fontdata_set(xivres::font_type::font);
+								break;
+							} catch (...) {}
 						}
 
 						if (font)
@@ -100,23 +43,11 @@ std::shared_ptr<xivres::fontgen::fixed_size_font> GetGameFont(xivres::fontgen::g
 			case xivres::fontgen::game_font_family::ChnAXIS: {
 				auto& font = s_fontSet[xivres::font_type::chn_axis];
 				if (!font) {
-					for (const auto validRegion : {"chinese"}) {
-						for (const auto& path : pathconf[validRegion]) {
+					for (const auto pathList : {g_config.China}) {
+						for (const auto& path : pathList) {
 							try {
-								std::string pathStr = path.get<std::string>();
-								
-								std::wstring wPathStr = xivres::util::unicode::convert<std::wstring>(pathStr);
-								std::filesystem::path fsPath(wPathStr);
-								
-								font = xivres::installation(fsPath.string()).get_fontdata_set(xivres::font_type::chn_axis);
-								if (font) {
-									break;
-								}
-							} catch (const std::exception& e) {
-								OutputDebugStringW(std::format(
-									L"中文路径处理错误: {}\n", 
-									xivres::util::unicode::convert<std::wstring>(e.what())).c_str());
-							}
+								font = xivres::installation(path).get_fontdata_set(xivres::font_type::chn_axis);
+							} catch (...) {}
 						}
 					}
 					if (!font)
@@ -128,23 +59,11 @@ std::shared_ptr<xivres::fontgen::fixed_size_font> GetGameFont(xivres::fontgen::g
 			case xivres::fontgen::game_font_family::KrnAXIS: {
 				auto& font = s_fontSet[xivres::font_type::krn_axis];
 				if (!font) {
-					for (const auto validRegion : {"korean"}) {
-						for (const auto& path : pathconf[validRegion]) {
+					for (const auto pathList : {g_config.Korea}) {
+						for (const auto& path : pathList) {
 							try {
-								std::string pathStr = path.get<std::string>();
-								
-								std::wstring wPathStr = xivres::util::unicode::convert<std::wstring>(pathStr);
-								std::filesystem::path fsPath(wPathStr);
-								
-								font = xivres::installation(fsPath.string()).get_fontdata_set(xivres::font_type::krn_axis);
-								if (font) {
-									break;
-								}
-							} catch (const std::exception& e) {
-								OutputDebugStringW(std::format(
-									L"韩文路径处理错误: {}\n", 
-									xivres::util::unicode::convert<std::wstring>(e.what())).c_str());
-							}
+								font = xivres::installation(path).get_fontdata_set(xivres::font_type::krn_axis);
+							} catch (...) {}
 						}
 					}
 					if (!font)
@@ -153,13 +72,20 @@ std::shared_ptr<xivres::fontgen::fixed_size_font> GetGameFont(xivres::fontgen::g
 				return font.get_font(family, size);
 			}
 		}
+	} catch (const WException& e) {
+		if (!showedGameNotFoundError) {
+			showedGameNotFoundError = true;
+			ShowErrorMessageBox(nullptr, IDS_ERROR_GAMENOTFOUND_BODY, e);
+		}
+	} catch (const std::system_error& e) {
+		if (!showedGameNotFoundError) {
+			showedGameNotFoundError = true;
+			ShowErrorMessageBox(nullptr, IDS_ERROR_GAMENOTFOUND_BODY, e);
+		}
 	} catch (const std::exception& e) {
-		static bool showed = false;
-		if (!showed) {
-			showed = true;
-			MessageBoxW(nullptr, std::format(
-				L"未能找到对应的游戏安装目录 ({}). 请在 config.json 中修改相关游戏路径, 保存后重新启动本程序",
-				xivres::util::unicode::convert<std::wstring>(e.what())).c_str(), L"错误", MB_OK);
+		if (!showedGameNotFoundError) {
+			showedGameNotFoundError = true;
+			ShowErrorMessageBox(nullptr, IDS_ERROR_GAMENOTFOUND_BODY, e);
 		}
 	}
 
@@ -299,7 +225,11 @@ const std::shared_ptr<xivres::fontgen::fixed_size_font>& App::Structs::FaceEleme
 
 				case RendererEnum::DirectWrite: {
 					auto [factory, font] = Lookup.ResolveFont();
-					m_baseFont = std::make_shared<xivres::fontgen::directwrite_fixed_size_font>(std::move(factory), std::move(font), Size, Gamma, TransformationMatrix, RendererSpecific.DirectWrite);
+					auto specifics = RendererSpecific.DirectWrite;
+					specifics.Features.clear();
+					for (const auto& f : Lookup.Features)
+						specifics.Features.push_back({ .nameTag = f, .parameter = 1 });
+					m_baseFont = std::make_shared<xivres::fontgen::directwrite_fixed_size_font>(std::move(factory), std::move(font), Size, Gamma, TransformationMatrix, specifics);
 					break;
 				}
 
@@ -342,12 +272,10 @@ std::string App::Structs::FaceElement::GetBaseFontKey() const {
 	switch (Renderer) {
 		case RendererEnum::Empty:
 			return std::format("empty:{:g}:{}:{}", Size, RendererSpecific.Empty.Ascent, RendererSpecific.Empty.LineHeight);
-			break;
 		case RendererEnum::PrerenderedGameInstallation:
 			return std::format("game:{}:{:g}", Lookup.Name, Size);
-			break;
-		case RendererEnum::DirectWrite:
-			return std::format("directwrite:{}:{:g}:{:g}:{}:{}:{}:{}:{}:{}:{:08X}{:08X}{:08X}{:08X}",
+		case RendererEnum::DirectWrite: {
+			auto res = std::format("directwrite:{}:{:g}:{:g}:{}:{}:{}:{}:{}:{}:{:08X}{:08X}{:08X}{:08X}",
 				Lookup.Name,
 				Size,
 				Gamma,
@@ -362,7 +290,10 @@ std::string App::Structs::FaceElement::GetBaseFontKey() const {
 				*reinterpret_cast<const uint32_t*>(&TransformationMatrix.M21),
 				*reinterpret_cast<const uint32_t*>(&TransformationMatrix.M22)
 			);
-			break;
+			for (const auto& v : Lookup.Features)
+				res += std::format(":{}", std::string_view(reinterpret_cast<const char*>(&v), 4));
+			return res;
+		}
 		case RendererEnum::FreeType:
 			return std::format("freetype:{}:{:g}:{:g}:{}:{}:{}:{}:{:08X}{:08X}{:08X}{:08X}",
 				Lookup.Name,
@@ -377,7 +308,6 @@ std::string App::Structs::FaceElement::GetBaseFontKey() const {
 				*reinterpret_cast<const uint32_t*>(&TransformationMatrix.M21),
 				*reinterpret_cast<const uint32_t*>(&TransformationMatrix.M22)
 			);
-			break;
 		default:
 			throw std::runtime_error("Invalid renderer");
 	}
@@ -843,6 +773,13 @@ void App::Structs::from_json(const nlohmann::json& json, LookupStruct& value) {
 	value.Weight = static_cast<DWRITE_FONT_WEIGHT>(json.value<int>("weight", DWRITE_FONT_WEIGHT_NORMAL));
 	value.Stretch = static_cast<DWRITE_FONT_STRETCH>(json.value<int>("stretch", DWRITE_FONT_STRETCH_NORMAL));
 	value.Style = static_cast<DWRITE_FONT_STYLE>(json.value<int>("style", DWRITE_FONT_STYLE_NORMAL));
+	value.Features.clear();
+	if (const auto it = json.find("features"); it != json.end() && it->is_array()) {
+		for (const auto& [_, v] : it->items()) {
+			const auto vs = v.get<std::string>();
+			value.Features.insert(static_cast<DWRITE_FONT_FEATURE_TAG>(*reinterpret_cast<const uint32_t*>(vs.c_str())));
+		}
+	}
 }
 
 void App::Structs::to_json(nlohmann::json& json, const LookupStruct& value) {
@@ -851,6 +788,14 @@ void App::Structs::to_json(nlohmann::json& json, const LookupStruct& value) {
 	json.emplace("weight", static_cast<int>(value.Weight));
 	json.emplace("stretch", static_cast<int>(value.Stretch));
 	json.emplace("style", static_cast<int>(value.Style));
+
+	auto features = nlohmann::json::array();
+	for (const auto& v : value.Features) {
+		char buf[5]{};
+		*reinterpret_cast<uint32_t*>(buf) = static_cast<uint32_t>(v);
+		features.emplace_back(buf);
+	}
+	json.emplace("features", features);
 }
 
 void App::Structs::from_json(const nlohmann::json& json, MultiFontSet& value) {
@@ -869,7 +814,9 @@ void App::Structs::from_json(const nlohmann::json& json, MultiFontSet& value) {
 		}
 	}
 
-	value.ExportMapFontLobbyToFont = json.value("exportMapFontLobbyToFont", true);
+	value.ExportMapFontLobbyToFont = json.value("exportMapFontLobbyToFont", false);
+	value.ExportMapChnAxisToFont = json.value("exportMapChnAxisToFont", false);
+	value.ExportMapKrnAxisToFont = json.value("exportMapKrnAxisToFont", false);
 }
 
 void App::Structs::to_json(nlohmann::json& json, const MultiFontSet& value) {
@@ -880,6 +827,8 @@ void App::Structs::to_json(nlohmann::json& json, const MultiFontSet& value) {
 	}
 
 	json["exportMapFontLobbyToFont"] = value.ExportMapFontLobbyToFont;
+	json["exportMapChnAxisToFont"] = value.ExportMapChnAxisToFont;
+	json["exportMapKrnAxisToFont"] = value.ExportMapKrnAxisToFont;
 }
 
 const char* App::Structs::GetDefaultPreviewText() {

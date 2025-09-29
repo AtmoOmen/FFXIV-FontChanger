@@ -11,7 +11,7 @@ struct App::ProgressDialog::ControlStruct {
 	HWND ProgrssBar = GetDlgItem(Window, IDC_PROGRESS);
 }* m_controls = nullptr;
 
-App::ProgressDialog::ProgressDialog(HWND hParentWnd, std::string windowTitle)
+App::ProgressDialog::ProgressDialog(HWND hParentWnd, std::wstring windowTitle)
 	: m_hParentWnd(hParentWnd)
 	, m_windowTitle(std::move(windowTitle)) {
 	m_hReadyEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
@@ -20,7 +20,26 @@ App::ProgressDialog::ProgressDialog(HWND hParentWnd, std::string windowTitle)
 
 	bool bFailed = false;
 	m_dialogThread = std::thread([this, &bFailed]() {
-		std::unique_ptr<std::remove_pointer_t<HGLOBAL>, decltype(&FreeResource)> hglob(LoadResource(g_hInstance, FindResourceW(g_hInstance, MAKEINTRESOURCE(IDD_PROGRESS), RT_DIALOG)), &FreeResource);
+		std::unique_ptr<std::remove_pointer_t<HGLOBAL>, decltype(&FreeResource)> hglob(
+			LoadResource(
+				g_hInstance,
+				FindResourceExW(
+					g_hInstance,
+					RT_DIALOG,
+					MAKEINTRESOURCE(IDD_PROGRESS),
+					g_langId)),
+			&FreeResource);
+		if (!hglob) {
+			hglob = {
+				LoadResource(
+					g_hInstance,
+					FindResourceW(
+						g_hInstance,
+						MAKEINTRESOURCE(IDD_PROGRESS),
+						RT_DIALOG)),
+				&FreeResource,
+			};
+		}
 		if (-1 == DialogBoxIndirectParamW(
 			g_hInstance,
 			reinterpret_cast<DLGTEMPLATE*>(LockResource(hglob.get())),
@@ -57,9 +76,12 @@ bool App::ProgressDialog::IsCancelled() const {
 	return m_bCancelled;
 }
 
-void App::ProgressDialog::UpdateStatusMessage(const std::string& s) {
-	auto wstr = xivres::util::unicode::convert<std::wstring>(s);
-	SendMessageW(m_controls->StepNameStatic, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(wstr.c_str()));
+void App::ProgressDialog::UpdateStatusMessage(const std::wstring& s) {
+	Static_SetText(m_controls->StepNameStatic, s.c_str());
+}
+
+void App::ProgressDialog::UpdateStatusMessage(std::wstring_view s) {
+	UpdateStatusMessage(std::wstring(s));
 }
 
 void App::ProgressDialog::UpdateProgress(float progress) {
@@ -73,9 +95,7 @@ void App::ProgressDialog::UpdateProgress(float progress) {
 }
 
 INT_PTR App::ProgressDialog::Dialog_OnInitDialog() {
-	auto titleWstr = xivres::util::unicode::convert<std::wstring>(m_windowTitle);
-	SendMessageW(m_controls->Window, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(titleWstr.c_str()));
-	
+	SetWindowTextW(m_controls->Window, m_windowTitle.c_str());
 	SendMessageW(m_controls->ProgrssBar, PBM_SETRANGE32, 0, 10000);
 	UpdateProgress(std::nanf(""));
 

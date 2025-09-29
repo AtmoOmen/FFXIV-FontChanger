@@ -5,6 +5,7 @@
 #include "Structs.h"
 #include "MainWindow.h"
 #include "MainWindow.Internal.h"
+#include "FontGeneratorConfig.h"
 
 bool App::FontEditorWindow::ConsumeDialogMessage(MSG& msg) {
 	if (IsDialogMessage(m_hWnd, &msg))
@@ -38,7 +39,19 @@ LRESULT App::FontEditorWindow::Window_OnCreate(HWND hwnd) {
 
 	m_hAccelerator = LoadAcceleratorsW(g_hInstance, MAKEINTRESOURCEW(IDR_ACCELERATOR_FACEELEMENTEDITOR));
 
-	NONCLIENTMETRICSW ncm = {sizeof(NONCLIENTMETRICSW)};
+	auto hRes = FindResourceExW(g_hInstance, RT_MENU, MAKEINTRESOURCEW(IDR_FONTEDITOR), g_langId);
+	if (!hRes)
+		hRes = FindResourceW(g_hInstance, MAKEINTRESOURCEW(IDR_FONTEDITOR), RT_MENU);
+	if (!hRes)
+		throw std::system_error(std::error_code(GetLastError(), std::system_category()));
+
+	const auto hGlob = LoadResource(g_hInstance, hRes);
+	if (!hGlob)
+		throw std::system_error(std::error_code(GetLastError(), std::system_category()));
+	SetMenu(m_hWnd, LoadMenuIndirectW(LockResource(hGlob)));
+	FreeResource(hGlob);
+
+	NONCLIENTMETRICSW ncm = { sizeof(NONCLIENTMETRICSW) };
 	SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof ncm, &ncm, 0);
 	m_hUiFont = CreateFontIndirectW(&ncm.lfMessageFont);
 
@@ -64,38 +77,48 @@ LRESULT App::FontEditorWindow::Window_OnCreate(HWND hwnd) {
 		if (msg == WM_KEYDOWN && wParam == 'A' && (GetKeyState(VK_CONTROL) & 0x8000) && !(GetKeyState(VK_SHIFT) & 0x8000) && !(GetKeyState(VK_MENU) & 0x8000) && !(GetKeyState(VK_LWIN) & 0x8000) && !(GetKeyState(VK_RWIN) & 0x8000))
 			Edit_SetSel(hWnd, 0, Edit_GetTextLength(hWnd));
 		return DefSubclassProc(hWnd, msg, wParam, lParam);
-	}, 1, 0);
+		}, 1, 0);
 
-	const auto AddColumn = [this](int columnIndex, int width, const wchar_t* name) {
+	const auto AddColumn = [this, zoom = GetZoom()](int columnIndex, int width, UINT resId) {
+		std::wstring name(GetStringResource(resId));
 		LVCOLUMNW col{
 			.mask = LVCF_TEXT | LVCF_WIDTH,
-			.cx = width,
-			.pszText = const_cast<wchar_t*>(name),
+			.cx = static_cast<int>(width * zoom),
+			.pszText = const_cast<wchar_t*>(name.c_str()),
 		};
 		ListView_InsertColumn(m_hFaceElementsListView, columnIndex, &col);
-	};
-	AddColumn(ListViewColsFamilyName, 120, L"字体");
-	AddColumn(ListViewColsSubfamilyName, 80, L"变体");
-	AddColumn(ListViewColsSize, 80, L"字号");
-	AddColumn(ListViewColsLineHeight, 80, L"行高");
-	AddColumn(ListViewColsAscent, 80, L"上延距离");
-	AddColumn(ListViewColsHorizontalOffset, 120, L"水平偏移");
-	AddColumn(ListViewColsLetterSpacing, 100, L"字距");
-	AddColumn(ListViewColsGamma, 60, L"伽马值");
-	AddColumn(ListViewColsCodepoints, 80, L"码位");
-	AddColumn(ListViewColsMergeMode, 70, L"覆盖");
-	AddColumn(ListViewColsGlyphCount, 60, L"字形数");
-	AddColumn(ListViewColsRenderer, 180, L"渲染器");
-	AddColumn(ListViewColsLookup, 300, L"查询");
+		};
+	AddColumn(ListViewColsFamilyName, 120, IDS_FONTLISTVIEW_COLUMN_FAMILY);
+	AddColumn(ListViewColsSubfamilyName, 80, IDS_FONTLISTVIEW_COLUMN_SUBFAMILY);
+	AddColumn(ListViewColsSize, 80, IDS_FONTLISTVIEW_COLUMN_SIZE);
+	AddColumn(ListViewColsLineHeight, 80, IDS_FONTLISTVIEW_COLUMN_LINE_HEIGHT);
+	AddColumn(ListViewColsAscent, 80, IDS_FONTLISTVIEW_COLUMN_ASCENT);
+	AddColumn(ListViewColsHorizontalOffset, 120, IDS_FONTLISTVIEW_COLUMN_HORIZONTAL_OFFSET);
+	AddColumn(ListViewColsLetterSpacing, 100, IDS_FONTLISTVIEW_COLUMN_LETTER_SPACING);
+	AddColumn(ListViewColsGamma, 60, IDS_FONTLISTVIEW_COLUMN_GAMMA);
+	AddColumn(ListViewColsCodepoints, 80, IDS_FONTLISTVIEW_COLUMN_CODEPOINTS);
+	AddColumn(ListViewColsMergeMode, 70, IDS_FONTLISTVIEW_COLUMN_OVERWRITE);
+	AddColumn(ListViewColsGlyphCount, 60, IDS_FONTLISTVIEW_COLUMN_GLYPHS);
+	AddColumn(ListViewColsRenderer, 180, IDS_FONTLISTVIEW_COLUMN_RENDERER);
+	AddColumn(ListViewColsLookup, 300, IDS_FONTLISTVIEW_COLUMN_LOOKUP);
 
 	if (m_args.size() >= 2 && std::filesystem::exists(m_args[1])) {
 		try {
-			SetCurrentMultiFontSet(m_args[1]);
+			IShellItemPtr shellItem;
+			SuccessOrThrow(SHCreateItemFromParsingName(m_args[1].c_str(), nullptr, IID_PPV_ARGS(&shellItem)));
+			SetCurrentMultiFontSet(std::move(shellItem));
+		} catch (const WException& e) {
+			ShowErrorMessageBox(m_hWnd, IDS_ERROR_OPENFILEFAILURE_BODY, e);
+			return 1;
+		} catch (const std::system_error& e) {
+			ShowErrorMessageBox(m_hWnd, IDS_ERROR_OPENFILEFAILURE_BODY, e);
+			return 1;
 		} catch (const std::exception& e) {
-			MessageBoxW(m_hWnd, std::format(L"无法打开文件: {}", xivres::util::unicode::convert<std::wstring>(e.what())).c_str(), GetWindowString(m_hWnd).c_str(), MB_OK | MB_ICONERROR);
+			ShowErrorMessageBox(m_hWnd, IDS_ERROR_OPENFILEFAILURE_BODY, e);
+			return 1;
 		}
 	}
-	if (m_path.empty())
+	if (!m_currentShellItem)
 		Menu_File_New(xivres::font_type::font);
 
 	Window_OnSize();
@@ -107,14 +130,43 @@ LRESULT App::FontEditorWindow::Window_OnSize() {
 	RECT rc;
 	GetClientRect(m_hWnd, &rc);
 
+	const auto zoom = GetZoom();
+	const auto scaledFaceListBoxWidth = static_cast<int>(FaceListBoxWidth * zoom);
+	const auto scaledListViewHeight = static_cast<int>(ListViewHeight * zoom);
+	const auto scaledEditHeight = static_cast<int>(EditHeight * zoom);
+
 	auto hdwp = BeginDeferWindowPos(Id_Last_);
-	hdwp = DeferWindowPos(hdwp, m_hFacesListBox, nullptr, 0, 0, FaceListBoxWidth, rc.bottom - rc.top, SWP_NOZORDER | SWP_NOACTIVATE);
-	hdwp = DeferWindowPos(hdwp, m_hFaceElementsListView, nullptr, FaceListBoxWidth, 0, (std::max<int>)(0, rc.right - rc.left - FaceListBoxWidth), ListViewHeight, SWP_NOZORDER | SWP_NOACTIVATE);
-	hdwp = DeferWindowPos(hdwp, m_hEdit, nullptr, FaceListBoxWidth, ListViewHeight, (std::max<int>)(0, rc.right - rc.left - FaceListBoxWidth), EditHeight, SWP_NOZORDER | SWP_NOACTIVATE);
+	hdwp = DeferWindowPos(
+		hdwp,
+		m_hFacesListBox,
+		nullptr,
+		0,
+		0,
+		scaledFaceListBoxWidth,
+		rc.bottom - rc.top,
+		SWP_NOZORDER | SWP_NOACTIVATE);
+	hdwp = DeferWindowPos(
+		hdwp,
+		m_hFaceElementsListView,
+		nullptr,
+		scaledFaceListBoxWidth,
+		0,
+		(std::max<int>)(0, rc.right - rc.left - scaledFaceListBoxWidth),
+		scaledListViewHeight,
+		SWP_NOZORDER | SWP_NOACTIVATE);
+	hdwp = DeferWindowPos(
+		hdwp,
+		m_hEdit,
+		nullptr,
+		scaledFaceListBoxWidth,
+		scaledListViewHeight,
+		(std::max<int>)(0, rc.right - rc.left - scaledFaceListBoxWidth),
+		scaledEditHeight,
+		SWP_NOZORDER | SWP_NOACTIVATE);
 	EndDeferWindowPos(hdwp);
 
-	m_nDrawLeft = FaceListBoxWidth;
-	m_nDrawTop = EditHeight + ListViewHeight;
+	m_nDrawLeft = scaledFaceListBoxWidth;
+	m_nDrawTop = scaledEditHeight + scaledListViewHeight;
 	m_bNeedRedraw = true;
 
 	return 0;
@@ -141,11 +193,11 @@ LRESULT App::FontEditorWindow::Window_OnPaint() {
 
 		const auto pad = 16 / m_nZoom;
 		const auto buf = m_pMipmap->as_span<xivres::util::b8g8r8a8>();
-		std::ranges::fill(buf, xivres::util::b8g8r8a8{0x88, 0x88, 0x88, 0xFF});
+		std::ranges::fill(buf, xivres::util::b8g8r8a8{ 0x88, 0x88, 0x88, 0xFF });
 
 		for (int y = pad; y < m_pMipmap->Height - pad; y++) {
 			for (int x = pad; x < m_pMipmap->Width - pad; x++)
-				buf[y * m_pMipmap->Width + x] = {0x00, 0x00, 0x00, 0xFF};
+				buf[y * m_pMipmap->Width + x] = { 0x00, 0x00, 0x00, 0xFF };
 		}
 
 		if (m_pActiveFace) {
@@ -158,13 +210,13 @@ LRESULT App::FontEditorWindow::Window_OnPaint() {
 					for (int y = pad, y_ = m_pMipmap->Height - pad; y < y_; y += lineHeight) {
 						for (int y2 = y + ascent, y2_ = (std::min)(y_, y + lineHeight); y2 < y2_; y2++)
 							for (int x = pad; x < m_pMipmap->Width - pad; x++)
-								buf[y2 * m_pMipmap->Width + x] = {0x33, 0x33, 0x33, 0xFF};
+								buf[y2 * m_pMipmap->Width + x] = { 0x33, 0x33, 0x33, 0xFF };
 					}
 				} else if (ascent == lineHeight) {
 					for (int y = pad, y_ = m_pMipmap->Height - pad; y < y_; y += 2 * lineHeight) {
 						for (int y2 = y + lineHeight, y2_ = (std::min)(y_, y + 2 * lineHeight); y2 < y2_; y2++)
 							for (int x = pad; x < m_pMipmap->Width - pad; x++)
-								buf[y2 * m_pMipmap->Width + x] = {0x33, 0x33, 0x33, 0xFF};
+								buf[y2 * m_pMipmap->Width + x] = { 0x33, 0x33, 0x33, 0xFF };
 					}
 				}
 			}
@@ -174,7 +226,7 @@ LRESULT App::FontEditorWindow::Window_OnPaint() {
 					.max_width(m_bWordWrap ? m_pMipmap->Width - pad * 2 : (std::numeric_limits<int>::max)())
 					.use_kerning(m_bKerning)
 					.measure(face.PreviewText)
-					.draw_to(*m_pMipmap, mergedFont, pad, pad, {0xFF, 0xFF, 0xFF, 0xFF}, {0, 0, 0, 0});
+					.draw_to(*m_pMipmap, mergedFont, pad, pad, { 0xFF, 0xFF, 0xFF, 0xFF }, { 0, 0, 0, 0 });
 			}
 		}
 	}
@@ -198,40 +250,40 @@ LRESULT App::FontEditorWindow::Window_OnPaint() {
 
 LRESULT App::FontEditorWindow::Window_OnInitMenuPopup(HMENU hMenu, int index, bool isWindowMenu) {
 	{
-		const MENUITEMINFOW mii{.cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(m_bWordWrap ? MFS_CHECKED : 0)};
+		const MENUITEMINFOW mii{ .cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(g_config.Language == "" ? MFS_CHECKED : 0) };
+		SetMenuItemInfoW(hMenu, ID_FILE_LANGUAGE_AUTO, FALSE, &mii);
+	}
+	{
+		const MENUITEMINFOW mii{ .cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(g_config.Language == "en-us" ? MFS_CHECKED : 0) };
+		SetMenuItemInfoW(hMenu, ID_FILE_LANGUAGE_ENGLISH, FALSE, &mii);
+	}
+	{
+		const MENUITEMINFOW mii{ .cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(g_config.Language == "ko-kr" ? MFS_CHECKED : 0) };
+		SetMenuItemInfoW(hMenu, ID_FILE_LANGUAGE_KOREAN, FALSE, &mii);
+	}
+	{
+		const MENUITEMINFOW mii{ .cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(m_bWordWrap ? MFS_CHECKED : 0) };
 		SetMenuItemInfoW(hMenu, ID_VIEW_WORDWRAP, FALSE, &mii);
 	}
 	{
-		const MENUITEMINFOW mii{.cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(m_bKerning ? MFS_CHECKED : 0)};
+		const MENUITEMINFOW mii{ .cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(m_bKerning ? MFS_CHECKED : 0) };
 		SetMenuItemInfoW(hMenu, ID_VIEW_KERNING, FALSE, &mii);
 	}
 	{
-		const MENUITEMINFOW mii{.cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(m_bShowLineMetrics ? MFS_CHECKED : 0)};
+		const MENUITEMINFOW mii{ .cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(m_bShowLineMetrics ? MFS_CHECKED : 0) };
 		SetMenuItemInfoW(hMenu, ID_VIEW_SHOWLINEMETRICS, FALSE, &mii);
 	}
 	{
-		const MENUITEMINFOW mii{.cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(m_hotReloadFontType == xivres::font_type::undefined ? MFS_CHECKED : 0)};
-		SetMenuItemInfoW(hMenu, ID_HOTRELOAD_FONT_AUTO, FALSE, &mii);
-	}
-	{
-		const MENUITEMINFOW mii{.cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(m_hotReloadFontType == xivres::font_type::font ? MFS_CHECKED : 0)};
-		SetMenuItemInfoW(hMenu, ID_HOTRELOAD_FONT_FONT, FALSE, &mii);
-	}
-	{
-		const MENUITEMINFOW mii{.cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(m_hotReloadFontType == xivres::font_type::font_lobby ? MFS_CHECKED : 0)};
-		SetMenuItemInfoW(hMenu, ID_HOTRELOAD_FONT_LOBBY, FALSE, &mii);
-	}
-	{
-		const MENUITEMINFOW mii{.cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(m_hotReloadFontType == xivres::font_type::chn_axis ? MFS_CHECKED : 0)};
-		SetMenuItemInfoW(hMenu, ID_HOTRELOAD_FONT_CHNAXIS, FALSE, &mii);
-	}
-	{
-		const MENUITEMINFOW mii{.cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(m_hotReloadFontType == xivres::font_type::krn_axis ? MFS_CHECKED : 0)};
-		SetMenuItemInfoW(hMenu, ID_HOTRELOAD_FONT_KRNAXIS, FALSE, &mii);
-	}
-	{
-		const MENUITEMINFOW mii{.cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(m_multiFontSet.ExportMapFontLobbyToFont ? MFS_CHECKED : 0)};
+		const MENUITEMINFOW mii{ .cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(m_multiFontSet.ExportMapFontLobbyToFont ? MFS_CHECKED : 0) };
 		SetMenuItemInfoW(hMenu, ID_EXPORT_MAPFONTLOBBY, FALSE, &mii);
+	}
+	{
+		const MENUITEMINFOW mii{ .cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(m_multiFontSet.ExportMapChnAxisToFont ? MFS_CHECKED : 0) };
+		SetMenuItemInfoW(hMenu, ID_EXPORT_MAPFONTCHNAXIS, FALSE, &mii);
+	}
+	{
+		const MENUITEMINFOW mii{ .cbSize = sizeof mii, .fMask = MIIM_STATE, .fState = static_cast<UINT>(m_multiFontSet.ExportMapKrnAxisToFont ? MFS_CHECKED : 0) };
+		SetMenuItemInfoW(hMenu, ID_EXPORT_MAPFONTKRNAXIS, FALSE, &mii);
 	}
 	return 0;
 }
@@ -278,6 +330,9 @@ LRESULT App::FontEditorWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
 				case ID_FILE_SAVE: return Menu_File_Save();
 				case ID_FILE_SAVEAS: return Menu_File_SaveAs(true);
 				case ID_FILE_SAVECOPYAS: return Menu_File_SaveAs(false);
+				case ID_FILE_LANGUAGE_AUTO: return Menu_File_Language("");
+				case ID_FILE_LANGUAGE_ENGLISH: return Menu_File_Language("en-us");
+				case ID_FILE_LANGUAGE_KOREAN: return Menu_File_Language("ko-kr");
 				case ID_FILE_EXIT: return Menu_File_Exit();
 				case ID_EDIT_ADD: return Menu_Edit_Add();
 				case ID_EDIT_CUT: return Menu_Edit_Cut();
@@ -320,13 +375,8 @@ LRESULT App::FontEditorWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
 				case ID_EXPORT_TOTTMP_COMPRESSAFTERPACKING: return Menu_Export_TTMP(CompressionMode::CompressAfterPacking);
 				case ID_EXPORT_TOTTMP_DONOTCOMPRESS: return Menu_Export_TTMP(CompressionMode::DoNotCompress);
 				case ID_EXPORT_MAPFONTLOBBY: return Menu_Export_MapFontLobby();
-				case ID_HOTRELOAD_RELOAD: return Menu_HotReload_Reload(false);
-				case ID_HOTRELOAD_RESTORE: return Menu_HotReload_Reload(true);
-				case ID_HOTRELOAD_FONT_AUTO: return Menu_HotReload_Font(xivres::font_type::undefined);
-				case ID_HOTRELOAD_FONT_FONT: return Menu_HotReload_Font(xivres::font_type::font);
-				case ID_HOTRELOAD_FONT_LOBBY: return Menu_HotReload_Font(xivres::font_type::font_lobby);
-				case ID_HOTRELOAD_FONT_CHNAXIS: return Menu_HotReload_Font(xivres::font_type::chn_axis);
-				case ID_HOTRELOAD_FONT_KRNAXIS: return Menu_HotReload_Font(xivres::font_type::krn_axis);
+				case ID_EXPORT_MAPFONTCHNAXIS: return Menu_Export_MapFontChnAxis();
+				case ID_EXPORT_MAPFONTKRNAXIS: return Menu_Export_MapFontKrnAxis();
 			}
 			break;
 
