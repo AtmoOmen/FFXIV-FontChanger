@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 
 #include "FaceElementEditorDialog.h"
 #include "resource.h"
@@ -333,6 +333,7 @@ LRESULT App::FontEditorWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARA
 				case ID_FILE_LANGUAGE_AUTO: return Menu_File_Language("");
 				case ID_FILE_LANGUAGE_ENGLISH: return Menu_File_Language("en-us");
 				case ID_FILE_LANGUAGE_KOREAN: return Menu_File_Language("ko-kr");
+				case ID_FILE_LANGUAGE_CHINESE: return Menu_File_Language("zh-cn");
 				case ID_FILE_EXIT: return Menu_File_Exit();
 				case ID_EDIT_ADD: return Menu_Edit_Add();
 				case ID_EDIT_CUT: return Menu_Edit_Cut();
