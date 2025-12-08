@@ -109,6 +109,7 @@ BEGIN
         MENUITEM "일반 용도 폰트를 로비에서도 사용하기 (font_lobby 접근 시 font 사용)(&M)", ID_EXPORT_MAPFONTLOBBY
         MENUITEM "일반 용도 폰트를 ChnAXIS{}에도 사용하기(C)", ID_EXPORT_MAPFONTCHNAXIS
         MENUITEM "일반 용도 폰트를 KrnAXIS{}에도 사용하기(&K)", ID_EXPORT_MAPFONTKRNAXIS
+        MENUITEM "同时替换繁体中文字体(&TC)",               ID_EXPORT_MAPFONTTCAXIS
     END
 END
 
@@ -587,6 +588,7 @@ BEGIN
         MENUITEM "Additionally &map font_lobby{} to font{}", ID_EXPORT_MAPFONTLOBBY
         MENUITEM "Additionally map &ChnAXIS{} to font{}(AXIS)", ID_EXPORT_MAPFONTCHNAXIS
         MENUITEM "Additionally map &KrnAXIS{} to font{}(AXIS)", ID_EXPORT_MAPFONTKRNAXIS
+        MENUITEM "同时替换繁体中文字体(&TC)",               ID_EXPORT_MAPFONTTCAXIS
     END
 END
 
@@ -1272,6 +1274,7 @@ BEGIN
             MENUITEM "登录界面字体(&L)",                  ID_FILE_NEW_LOBBYFONT
             MENUITEM "中文字体(&C)",                     ID_FILE_NEW_CHNAXIS
             MENUITEM "韩文字体(&K)",                     ID_FILE_NEW_KRNAXIS
+            MENUITEM "繁体中文字体(&TC)",                     ID_FILE_NEW_TCAXIS
         END
         MENUITEM "打开(&O)\tCtrl+O",               ID_FILE_OPEN
         MENUITEM "保存(&S)\tCtrl+S",               ID_FILE_SAVE
@@ -1346,6 +1349,7 @@ BEGIN
         MENUITEM "同时替换登录界面字体(&M)",            ID_EXPORT_MAPFONTLOBBY
         MENUITEM "同时替换中文字体(&C)",               ID_EXPORT_MAPFONTCHNAXIS
         MENUITEM "同时替换韩文字体(&K)",               ID_EXPORT_MAPFONTKRNAXIS
+        MENUITEM "同时替换繁体中文字体(&TC)",               ID_EXPORT_MAPFONTTCAXIS
     END
 END
 
